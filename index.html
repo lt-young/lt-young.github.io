@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio — Painting, Sculpture &amp; Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14120f;
+    --bg-panel: #1b1814;
+    --fg: #ece5d6;
+    --fg-dim: #9c9384;
+    --fg-faint: #6b6357;
+    --accent: #d9a441;
+    --accent-soft: #8a7038;
+    --line: rgba(236,229,214,0.14);
+    --line-soft: rgba(236,229,214,0.07);
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection{ background: var(--accent); color: #14120f; }
+
+  a{ color: inherit; }
+
+  img{ max-width: 100%; display:block; }
+
+  .wrap{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  /* ---------- NAV ---------- */
+  header.site-nav{
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 26px 40px;
+    mix-blend-mode: difference;
+  }
+  .site-nav .mark{
+    font-family:'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+  }
+  .site-nav nav{ display:flex; gap: 32px; }
+  .site-nav nav a{
+    text-decoration:none;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    color: var(--fg);
+    opacity: 0.85;
+    transition: opacity 0.2s ease;
+  }
+  .site-nav nav a:hover{ opacity: 1; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position: relative;
+    min-height: 100vh;
+    display:flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow:hidden;
+    background: #0a0908;
+  }
+  .hero-bg{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit: cover;
+    opacity: 0.62;
+    filter: saturate(1.05);
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(10,9,8,0.55) 0%, rgba(10,9,8,0.25) 32%, rgba(10,9,8,0.85) 78%, #0a0908 100%);
+  }
+  .hero-inner{
+    position: relative;
+    z-index: 2;
+    padding: 0 40px 68px;
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .hero-eyebrow{
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    margin-bottom: 22px;
+    font-weight: 500;
+  }
+  .hero h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(2.6rem, 6.4vw, 5.6rem);
+    line-height: 1.02;
+    max-width: 14ch;
+    letter-spacing: -0.01em;
+  }
+  .hero-sub{
+    margin-top: 26px;
+    max-width: 46ch;
+    color: var(--fg-dim);
+    font-size: 1.02rem;
+  }
+  .hero-scroll{
+    position:absolute;
+    bottom: 28px; right: 40px;
+    font-size: 0.78rem;
+    color: var(--fg-dim);
+    letter-spacing: 0.03em;
+    z-index: 2;
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+  .hero-scroll .stem{
+    width:1px; height: 34px;
+    background: var(--fg-dim);
+    display:inline-block;
+  }
+
+  /* ---------- SECTION HEADS ---------- */
+  .section-head{
+    padding: 140px 0 64px;
+  }
+  .section-head .num{
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    color: var(--accent-soft);
+    font-size: 1rem;
+    margin-bottom: 18px;
+    display:block;
+  }
+  .section-head h2{
+    font-family:'Fraunces', serif;
+    font-weight: 400;
+    font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+    max-width: 20ch;
+  }
+  .section-head p{
+    margin-top: 18px;
+    color: var(--fg-dim);
+    max-width: 56ch;
+    font-size: 1rem;
+  }
+
+  /* ---------- INTRO STATEMENT ---------- */
+  .statement{
+    padding: 160px 0 40px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .statement blockquote{
+    font-family:'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    line-height: 1.45;
+    max-width: 30ch;
+    color: var(--fg);
+  }
+  .statement .statement-foot{
+    margin-top: 34px;
+    color: var(--fg-dim);
+    max-width: 62ch;
+    font-size: 0.98rem;
+  }
+  .statement .statement-foot p + p{
+    margin-top: 18px;
+  }
+
+  /* ---------- WORK ENTRY ---------- */
+  .work{
+    padding: 90px 0;
+    border-top: 1px solid var(--line-soft);
+    display:grid;
+    grid-template-columns: 1.35fr 0.9fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .work.flip{
+    grid-template-columns: 0.9fr 1.35fr;
+  }
+  .work.flip .work-fig{ order: 2; }
+  .work.flip .work-info{ order: 1; }
+
+  .work-fig{
+    position: relative;
+    background: #0e0d0b;
+  }
+  .work-fig img{ width:100%; height:auto; }
+  .work-fig .plate{
+    position:absolute;
+    top: -14px; left: -14px;
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    font-size: 0.85rem;
+    color: var(--fg-faint);
+    background: var(--bg);
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+  }
+
+  .work-info h3{
+    font-family:'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    margin-bottom: 6px;
+  }
+  .work-meta{
+    color: var(--accent-soft);
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    margin-bottom: 26px;
+  }
+  .work-info p{
+    color: var(--fg-dim);
+    font-size: 0.98rem;
+    max-width: 46ch;
+  }
+  .work-info p + p{ margin-top: 14px; }
+
+  /* ---------- DESIGN WORK ---------- */
+  .design-piece{
+    padding: 70px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .design-piece .cover-pair{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--line);
+    margin-bottom: 30px;
+  }
+  .design-piece .cover-pair img{ width:100%; height:100%; object-fit:cover; }
+  .design-caption{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .design-caption h3{
+    font-family:'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 1.4rem;
+  }
+  .design-caption span{
+    color: var(--fg-dim);
+    font-size: 0.9rem;
+  }
+
+  .logo-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: var(--line);
+    margin-top: 40px;
+  }
+  .logo-cell{
+    background: #0a0908;
+    padding: 46px 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    aspect-ratio: 1 / 1;
+  }
+  .logo-cell img{ max-width: 78%; max-height: 78%; object-fit: contain; }
+  .logo-note{
+    margin-top: 22px;
+    color: var(--fg-dim);
+    font-size: 0.92rem;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    border-top: 1px solid var(--line-soft);
+    padding: 70px 0 46px;
+    margin-top: 60px;
+  }
+  footer .foot-row{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  footer h2{
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3vw, 2.3rem);
+    max-width: 16ch;
+  }
+  footer .foot-meta{
+    color: var(--fg-dim);
+    font-size: 0.88rem;
+    text-align: right;
+  }
+  footer .foot-meta a{
+    color: var(--fg);
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 4px;
+  }
+  footer .copy{
+    margin-top: 60px;
+    color: var(--fg-faint);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 860px){
+    .wrap{ padding: 0 24px; }
+    header.site-nav{ padding: 20px 24px; }
+    .site-nav nav{ gap: 18px; }
+    .hero-inner{ padding: 0 24px 52px; }
+    .hero-scroll{ display:none; }
+    .work, .work.flip{
+      grid-template-columns: 1fr;
+      gap: 30px;
+      padding: 60px 0;
+    }
+    .work.flip .work-fig{ order: 1; }
+    .work.flip .work-info{ order: 2; }
+    .design-piece .cover-pair{ grid-template-columns: 1fr; }
+    .logo-grid{ grid-template-columns: repeat(2, 1fr); }
+    .section-head{ padding: 90px 0 44px; }
+    .statement{ padding: 110px 0 30px; }
+    footer .foot-row{ flex-direction:column; align-items:flex-start; }
+    footer .foot-meta{ text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="mark">Studio&nbsp;Notes</div>
+  <nav>
+    <a href="#work">Fine Art</a>
+    <a href="#design">Design</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <img class="hero-bg" src="images/hero-bg.jpg" alt="">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Painting · Sculpture · Illustration</div>
+    <h1>Notes from an overworked, overlit mind.</h1>
+    <p class="hero-sub">A collection of paintings, sculpture, and design work made between 2024 and 2026 — most of it circling the same question: what does it feel like to live inside a head that won't quiet down.</p>
+  </div>
+  <div class="hero-scroll"><span class="stem"></span>Scroll</div>
+</section>
+
+<main class="wrap">
+
+  <section class="statement">
+    <blockquote>“Art beckons us into beauty, a protective layer that allows us to process the catastrophic events that unfurl around us.”</blockquote>
+    <div class="statement-foot">
+      <p>My experimental approach to art examines the human experience of time in our rapidly unfurling digital age. Time's forward progression &mdash; measured in seconds, minutes, and hours &mdash; is a universally acknowledged standard. Yet the experience of these agreed-upon units of advancement varies radically from individual to individual. As a person who contends with an invisible circus in my mind, who sees the changes spaces and people will likely experience over decades, I experience time rapidly and attempt to capture fleeting thoughts and sensations in my work.</p>
+      <p>As both an artist and an observer, I'm deeply influenced by the ethical dilemmas posed by rapid technological change. My pieces often interrogate the pressure to adapt, to evolve, to match a machine's pace. As a person, I am always thinking, experimenting, and driving towards results. I work in paintings, sculptures, and installations, cultivating pieces whose surface layers invite you near while the deeper meaning functions like a proximity fuse, unfurling only when the observer comes nearer. Amid the near-constant din of headlines that announce unease and sadness, art beckons us into beauty, a protective layer that allows us to process the catastrophic events that unfurl around us.</p>
+      <p>Committing to process and to observation allows respite from my constant momentum. I invest in people's actions and reactions, ponder their habits, and attempt fine lines to capture undertones. I enjoy using acrylic paint, as it allows me to layer instead of blend, and I lean into its versatility to create different feelings.</p>
+    </div>
+  </section>
+
+  <div id="work" class="section-head">
+    <span class="num">Plates I–IV</span>
+    <h2>Fine art</h2>
+    <p>Oil, watercolor, mixed media, and sculpture — on identity, overwork, and the quiet damage of too much screen time.</p>
+  </div>
+
+  <article class="work">
+    <div class="work-fig">
+      <span class="plate">I</span>
+      <img src="images/invisible-circus.jpg" alt="Invisible Circus, an oil painting of a young woman's face surrounded by small figures of herself performing acrobatics through her hair and features.">
+    </div>
+    <div class="work-info">
+      <h3>Invisible Circus</h3>
+      <div class="work-meta">2024 — Oil on canvas, 36&Prime; × 24&Prime;</div>
+      <p>My mind often houses an invisible circus of competing thoughts and impulses. I redefine my relationship with my own visage by processing all my internal and external thoughts, impulses, and sensations through art in an introspective yet playful process.</p>
+    </div>
+  </article>
+
+  <article class="work flip">
+    <div class="work-fig">
+      <span class="plate">II</span>
+      <img src="images/unfolded-box.jpg" alt="The Unfolded Box, a watercolor and colored pencil piece depicting a cubicle unfolded flat like a cardboard box, showing a desk, chair, ceiling fan, and filing cabinets.">
+    </div>
+    <div class="work-info">
+      <h3>The Unfolded Box</h3>
+      <div class="work-meta">2025 — Watercolor &amp; colored pencil, 32&Prime; × 24&Prime;</div>
+      <p>Expanding upon the themes of isolation and overwork in <em>80,000 Hours</em>, corporate time becomes simultaneously discarded yet made to be an active antagonist.</p>
+      <p>Where <em>80,000 Hours</em> explored how identity dissolves into routine, <em>The Unfolded Box</em> examines the multitude of pressures compressed within one cubicle.</p>
+    </div>
+  </article>
+
+  <article class="work">
+    <div class="work-fig">
+      <span class="plate">III</span>
+      <img src="images/doomscrolled.jpg" alt="Doomscrolled, a sculptural mixed media piece of a glowing brain made from air-dry clay and stuffed ballet tights, with a human figure curled inside, lit from within by a bare bulb.">
+    </div>
+    <div class="work-info">
+      <h3>Doomscrolled</h3>
+      <div class="work-meta">2025 — Mixed media, 24&Prime; × 30&Prime;</div>
+      <p>An artificial light source illuminates the amygdala, simulating brain activity. Upon the recognition of human limbs curled up in a claustrophobic position, the light becomes the oversaturating glow of the screen, bringing along suppressed feelings of shame that go hand in hand with excessive screen use.</p>
+      <p>I sculpted the figure using air-dry clay on canvas. A light bulb is threaded at the position of the amygdala, and stuffed ballet tights form the wrinkles of the brain. Acrylic paint adds layers and shading for value and contrast.</p>
+    </div>
+  </article>
+
+  <article class="work flip">
+    <div class="work-fig">
+      <span class="plate">IV</span>
+      <img src="images/handle-with-care.jpg" alt="Handle with Care, an acrylic diptych of a U-Haul truck, one panel showing the closed truck and the other its open cargo hold spilling cardboard boxes onto the ground.">
+    </div>
+    <div class="work-info">
+      <h3>Handle with Care</h3>
+      <div class="work-meta">2025 — Acrylic, 28&Prime; × 32&Prime;</div>
+      <p>Despite the cargo door being open, most of the boxes in this U-Haul, a symbol of the mind, remain secure. Only the older, battered boxes, filled, labeled fragile but placed nearest the door, fall away.</p>
+      <p>The moments we once cherished and packed away as precious are discarded as the mind has finite space and a big enough bump on our journey will shake them loose. As new experiences are loaded in, older ones slip out.</p>
+    </div>
+  </article>
+
+  <div id="design" class="section-head">
+    <span class="num">Applied work</span>
+    <h2>Design</h2>
+    <p>Logo, apparel, and print design made for school programs and clubs.</p>
+  </div>
+
+  <div class="design-piece">
+    <div class="cover-pair">
+      <img src="images/planner-front.jpg" alt="Planner cover design front, a painted koi fish in orange, white, and green with the text Orange County School of the Arts, 2026-2027.">
+      <img src="images/planner-back.jpg" alt="Planner cover design back, a dark blue koi fish with the text Follow your current.">
+    </div>
+    <div class="design-caption">
+      <h3>Planner cover design</h3>
+      <span>Digital painting — front &amp; back cover, 2026–2027 school planner</span>
+    </div>
+  </div>
+
+  <div class="design-piece">
+    <div class="logo-grid">
+      <div class="logo-cell"><img src="images/driven-by-creativity.jpg" alt="Driven by Creativity Visual Arts logo, a Volkswagen Beetle illustration with hand-lettered type."></div>
+      <div class="logo-cell"><img src="images/camera-logo.jpg" alt="Illustrated camera logo with a starburst flash, for the OCSA Thespians Troupe."></div>
+      <div class="logo-cell"><img src="images/cohort13.jpg" alt="Cohort 13 IYA logo in gold on black, with circuit-line ornamentation."></div>
+    </div>
+    <p class="logo-note">T-shirt &amp; logo design for school clubs and cohorts — hand-drawn illustration paired with type.</p>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <h2>Thanks for looking.</h2>
+      <div class="foot-meta">Prints and commission inquiries<br><a href="mailto:hello@example.com">hello@example.com</a></div>
+    </div>
+    <div class="copy">Portfolio, 2026 — replace the contact details above with your own.</div>
+  </div>
+</footer>
+
+</body>
+</html>
