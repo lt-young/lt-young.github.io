@@ -1,4 +1,5 @@
-import type { KoiPose } from "./koi";
+import { BODY_POINTS, type KoiPose } from "./koi";
+import type { Patch } from "./koiPattern";
 import type { Point } from "./pondState";
 
 const add = (a: Point, b: Point, k = 1): Point => ({ x: a.x + b.x * k, y: a.y + b.y * k });
@@ -9,117 +10,137 @@ function unit(from: Point, to: Point): Point {
   return { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
 }
 
-function rotate(vector: Point, angle: number): Point {
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  return { x: vector.x * cos - vector.y * sin, y: vector.x * sin + vector.y * cos };
+export function forwardOf(pose: KoiPose) {
+  return unit(pose.spine[1], pose.spine[0]);
 }
 
-export function bodySides(pose: KoiPose) {
-  const left = pose.spine.map((point, index) => add(point, pose.normals[index], pose.halfWidths[index]));
-  const right = pose.spine.map((point, index) => add(point, pose.normals[index], -pose.halfWidths[index]));
-  return { left, right };
-}
-
-function smoothThrough(path: Path2D, points: Point[]) {
-  for (let index = 0; index < points.length - 1; index++) {
-    const control = points[index];
-    const end = midpoint(points[index], points[index + 1]);
-    path.quadraticCurveTo(control.x, control.y, end.x, end.y);
+export function smoothPath(points: Point[], path = new Path2D(), closed = false) {
+  if (!closed) path.moveTo(points[0].x, points[0].y);
+  if (closed) {
+    const start = midpoint(points[points.length - 1], points[0]);
+    path.moveTo(start.x, start.y);
   }
-  const last = points[points.length - 1];
-  path.lineTo(last.x, last.y);
+  const loop = closed ? [...points, points[0]] : points;
+  for (let index = closed ? 0 : 1; index < loop.length - 1; index++) {
+    const end = midpoint(loop[index], loop[index + 1]);
+    path.quadraticCurveTo(loop[index].x, loop[index].y, end.x, end.y);
+  }
+  if (!closed) path.lineTo(loop[loop.length - 1].x, loop[loop.length - 1].y);
+  if (closed) path.closePath();
+  return path;
+}
+
+export function pointOnBody(pose: KoiPose, spinePosition: number, sideFraction: number): Point {
+  const clamped = Math.max(0, Math.min(BODY_POINTS - 1.001, spinePosition));
+  const index = Math.floor(clamped);
+  const t = clamped - index;
+  const blend = (a: Point, b: Point) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const center = blend(pose.spine[index], pose.spine[index + 1]);
+  const normal = blend(pose.normals[index], pose.normals[index + 1]);
+  const halfWidth = pose.halfWidths[index] + (pose.halfWidths[index + 1] - pose.halfWidths[index]) * t;
+  return add(center, normal, sideFraction * Math.max(halfWidth, pose.scale * 3));
 }
 
 export function bodyPath(pose: KoiPose) {
-  const { left, right } = bodySides(pose);
-  const forward = unit(pose.spine[1], pose.spine[0]);
+  const body = pose.spine.slice(0, BODY_POINTS);
+  const left = body.map((point, index) => add(point, pose.normals[index], pose.halfWidths[index]));
+  const right = body.map((point, index) => add(point, pose.normals[index], -pose.halfWidths[index]));
+  const forward = forwardOf(pose);
   const noseRadius = pose.halfWidths[0];
-  const nose = add(pose.spine[0], forward, noseRadius * 1.1);
+  const nose = add(pose.spine[0], forward, noseRadius * 1.15);
   const path = new Path2D();
   path.moveTo(nose.x, nose.y);
   const leftNoseControl = add(left[0], forward, noseRadius);
   path.quadraticCurveTo(leftNoseControl.x, leftNoseControl.y, left[0].x, left[0].y);
-  smoothThrough(path, left.slice(1));
-  smoothThrough(path, right.slice(0, -1).reverse());
+  for (let index = 1; index < left.length - 1; index++) {
+    const end = midpoint(left[index], left[index + 1]);
+    path.quadraticCurveTo(left[index].x, left[index].y, end.x, end.y);
+  }
+  const tailNarrow = pose.spine[BODY_POINTS - 1];
+  path.lineTo(tailNarrow.x, tailNarrow.y);
+  for (let index = right.length - 2; index > 0; index--) {
+    const end = midpoint(right[index], right[index - 1]);
+    path.quadraticCurveTo(right[index].x, right[index].y, end.x, end.y);
+  }
+  path.lineTo(right[0].x, right[0].y);
   const rightNoseControl = add(right[0], forward, noseRadius);
   path.quadraticCurveTo(rightNoseControl.x, rightNoseControl.y, nose.x, nose.y);
   path.closePath();
   return path;
 }
 
-export type FinGeometry = { outline: Path2D; rays: [Point, Point][] };
-
-export function tailFin(pose: KoiPose): FinGeometry {
-  const last = pose.spine.length - 1;
-  const base = pose.spine[last];
-  const sway = Math.sin(pose.phase - last * 0.55) * 0.45;
-  const back = rotate(unit(pose.spine[last - 1], base), sway);
-  const side = { x: -back.y, y: back.x };
-  const s = pose.scale;
-  const tipA = add(add(base, back, 32 * s), side, 18 * s);
-  const tipB = add(add(base, back, 32 * s), side, -18 * s);
-  const notch = add(base, back, 17 * s);
-  const outline = new Path2D();
-  const start = add(base, side, 2 * s);
-  outline.moveTo(start.x, start.y);
-  const controlA = add(add(base, back, 10 * s), side, 13 * s);
-  outline.quadraticCurveTo(controlA.x, controlA.y, tipA.x, tipA.y);
-  const notchControlA = add(notch, side, 4 * s);
-  outline.quadraticCurveTo(notchControlA.x, notchControlA.y, notch.x, notch.y);
-  const notchControlB = add(notch, side, -4 * s);
-  outline.quadraticCurveTo(notchControlB.x, notchControlB.y, tipB.x, tipB.y);
-  const controlB = add(add(base, back, 10 * s), side, -13 * s);
-  const end = add(base, side, -2 * s);
-  outline.quadraticCurveTo(controlB.x, controlB.y, end.x, end.y);
-  outline.closePath();
-  const rays: [Point, Point][] = [0.2, 0.45, 0.7].flatMap((t) => [
-    [base, add(add(base, back, 27 * s), side, 17 * s * (1 - t))],
-    [base, add(add(base, back, 27 * s), side, -17 * s * (1 - t))],
-  ]);
-  return { outline, rays };
+export function patchOutline(pose: KoiPose, patch: Patch, shrink = 1, jitter = 0) {
+  const points = patch.wobble.map((wobble, index) => {
+    const angle = (index / patch.wobble.length) * Math.PI * 2;
+    const reach = (wobble + Math.sin(index * 2.3 + jitter) * 0.08 * Math.min(1, jitter)) * shrink;
+    return pointOnBody(
+      pose,
+      patch.spinePosition + Math.cos(angle) * patch.lengthRadius * reach,
+      patch.side + Math.sin(angle) * patch.widthRadius * reach,
+    );
+  });
+  return smoothPath(points, new Path2D(), true);
 }
 
-function sideFin(pose: KoiPose, spineIndex: number, sideSign: number, length: number): FinGeometry {
+export function tailStrands(pose: KoiPose): Point[][] {
+  const base = BODY_POINTS - 2;
+  const tail = pose.spine.slice(base);
+  const spread = 15 * pose.scale;
+  return [-1, -0.66, -0.33, 0, 0.33, 0.66, 1].map((lane) => {
+    const lengthShare = 0.6 + 0.4 * Math.abs(lane);
+    const usable = Math.max(2, Math.round(tail.length * lengthShare));
+    return tail.slice(0, usable).map((point, index) => {
+      const opening = Math.pow(index / (tail.length - 1), 0.75);
+      return add(point, pose.normals[base + index], lane * spread * opening);
+    });
+  });
+}
+
+export type SideFin = { outline: Path2D; rays: Point[][] };
+
+function sideFin(pose: KoiPose, spineIndex: number, sideSign: number, length: number): SideFin {
   const anchorPoint = pose.spine[spineIndex];
   const normal = pose.normals[spineIndex];
   const back = unit(pose.spine[spineIndex - 1], anchorPoint);
-  const anchor = add(anchorPoint, normal, sideSign * pose.halfWidths[spineIndex] * 0.8);
-  const spread = 0.95 + 0.3 * Math.sin(pose.phase * 0.6 + sideSign);
-  const direction = add({ x: back.x * Math.cos(spread), y: back.y * Math.cos(spread) }, normal, sideSign * Math.sin(spread));
-  const across = { x: -direction.y, y: direction.x };
+  const anchor = add(anchorPoint, normal, sideSign * pose.halfWidths[spineIndex] * 0.92);
+  const spread = 0.9 + 0.3 * Math.sin(pose.phase * 0.6 + sideSign);
+  const outward = { x: normal.x * sideSign, y: normal.y * sideSign };
+  const direction = add({ x: back.x * Math.cos(spread), y: back.y * Math.cos(spread) }, outward, Math.sin(spread));
   const s = pose.scale * length;
-  const tip = add(anchor, direction, 15 * s);
-  const outerControl = add(add(anchor, direction, 10 * s), across, 8 * s);
-  const innerControl = add(add(anchor, direction, 9 * s), across, -3 * s);
-  const outline = new Path2D();
-  outline.moveTo(anchor.x, anchor.y);
-  outline.quadraticCurveTo(outerControl.x, outerControl.y, tip.x, tip.y);
-  outline.quadraticCurveTo(innerControl.x, innerControl.y, anchor.x, anchor.y);
-  outline.closePath();
-  const rays: [Point, Point][] = [0.35, 0.65].map((t) => [anchor, add(add(anchor, direction, 13 * s), across, (t - 0.4) * 6 * s)]);
+  const tip = add(anchor, direction, 20 * s);
+  const leading = add(add(anchor, direction, 7 * s), outward, 11 * s);
+  const trailing = add(add(anchor, direction, 12 * s), back, 4 * s);
+  const outline = smoothPath([anchor, leading, tip, trailing], new Path2D(), true);
+  const between = (a: Point, b: Point, t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const rays = [between(anchor, leading, 0.9), between(leading, tip, 0.5), tip, between(tip, trailing, 0.5)].map(
+    (end) => [anchor, end],
+  );
   return { outline, rays };
 }
 
-export function sideFins(pose: KoiPose): FinGeometry[] {
-  return [
-    sideFin(pose, 3, 1, 1.35),
-    sideFin(pose, 3, -1, 1.35),
-    sideFin(pose, 8, 1, 0.55),
-    sideFin(pose, 8, -1, 0.55),
-  ];
+export function sideFins(pose: KoiPose): SideFin[] {
+  return [sideFin(pose, 3, 1, 1.7), sideFin(pose, 3, -1, 1.7), sideFin(pose, 9, 1, 0.8), sideFin(pose, 9, -1, 0.8)];
 }
 
-export function pointOnBody(pose: KoiPose, spinePosition: number, sideFraction: number): Point {
-  const index = Math.min(pose.spine.length - 2, Math.floor(spinePosition));
-  const t = spinePosition - index;
-  const blend = (a: Point, b: Point) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-  const center = blend(pose.spine[index], pose.spine[index + 1]);
-  const normal = blend(pose.normals[index], pose.normals[index + 1]);
-  const halfWidth = pose.halfWidths[index] + (pose.halfWidths[index + 1] - pose.halfWidths[index]) * t;
-  return add(center, normal, sideFraction * halfWidth);
+export function barbels(pose: KoiPose): Point[][] {
+  const forward = forwardOf(pose);
+  const sway = Math.sin(pose.phase * 0.8) * 2 * pose.scale;
+  return [1, -1].map((side) => {
+    const root = pointOnBody(pose, 0.1, side * 0.55);
+    const normal = { x: pose.normals[0].x * side, y: pose.normals[0].y * side };
+    return [
+      root,
+      add(add(root, forward, 4 * pose.scale), normal, 5 * pose.scale + sway),
+      add(add(root, forward, -1 * pose.scale), normal, 13 * pose.scale + sway),
+    ];
+  });
 }
 
 export function eyes(pose: KoiPose): Point[] {
-  return [pointOnBody(pose, 0.7, 0.62), pointOnBody(pose, 0.7, -0.62)];
+  return [pointOnBody(pose, 0.75, 0.72), pointOnBody(pose, 0.75, -0.72)];
+}
+
+export function streakPoints(pose: KoiPose, side: number, from: number, to: number): Point[] {
+  const steps = 6;
+  return Array.from({ length: steps + 1 }, (_, step) => pointOnBody(pose, from + ((to - from) * step) / steps, side));
 }

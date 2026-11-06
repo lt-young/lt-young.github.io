@@ -1,8 +1,11 @@
 import type { Point } from "./pondState";
+import { patternFor, type KoiPattern, type KoiVariety } from "./koiPattern";
 
-const SEGMENT_COUNT = 14;
-const SEGMENT_LENGTH = 9;
-const MAX_HALF_WIDTH = 15;
+export const BODY_POINTS = 14;
+const TAIL_POINTS = 6;
+const SEGMENT_COUNT = BODY_POINTS + TAIL_POINTS;
+const SEGMENT_LENGTH = 10;
+const MAX_HALF_WIDTH = 20;
 
 export type KoiPose = {
   spine: Point[];
@@ -11,14 +14,16 @@ export type KoiPose = {
   phase: number;
   scale: number;
   speed: number;
+  pattern: KoiPattern;
 };
 
 function wrapAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
-function bodyHalfWidth(t: number) {
-  const roundedNoseT = 0.05 + t * 0.95;
+function bodyHalfWidth(index: number) {
+  if (index >= BODY_POINTS) return 0;
+  const roundedNoseT = 0.05 + (index / (BODY_POINTS - 1)) * 0.95;
   return MAX_HALF_WIDTH * Math.sin(Math.PI * Math.pow(roundedNoseT, 0.6)) * (1 - 0.6 * roundedNoseT);
 }
 
@@ -29,23 +34,39 @@ function normalBetween(from: Point, to: Point): Point {
   return { x: -dy / length, y: dx / length };
 }
 
+function normalsAlong(points: Point[]) {
+  return points.map((point, index) =>
+    index === 0 ? normalBetween(points[1], point) : normalBetween(point, points[index - 1]),
+  );
+}
+
 export class Koi {
   private spine: Point[];
-  private heading = 0;
+  private heading: number;
   private speed = 0;
-  private phase = 0;
+  private phase: number;
+  private readonly pattern: KoiPattern;
+  readonly sizeFactor: number;
   scale: number;
 
-  constructor(start: Point, scale: number) {
-    this.scale = scale;
+  constructor(start: Point, viewportScale: number, variety: KoiVariety, seed: number, sizeFactor = 1) {
+    this.sizeFactor = sizeFactor;
+    this.scale = viewportScale * sizeFactor;
+    this.pattern = patternFor(variety, seed);
+    this.heading = seed * 2.4;
+    this.phase = seed * 1.7;
     this.spine = Array.from({ length: SEGMENT_COUNT }, (_, index) => ({
-      x: start.x - index * SEGMENT_LENGTH * scale,
-      y: start.y,
+      x: start.x - Math.cos(this.heading) * index * SEGMENT_LENGTH * this.scale,
+      y: start.y - Math.sin(this.heading) * index * SEGMENT_LENGTH * this.scale,
     }));
   }
 
   get head(): Point {
     return this.spine[0];
+  }
+
+  resize(viewportScale: number) {
+    this.scale = viewportScale * this.sizeFactor;
   }
 
   swimToward(target: Point, desiredSpeed: number, deltaSeconds: number) {
@@ -57,7 +78,7 @@ export class Koi {
     this.speed += (desiredSpeed - this.speed) * Math.min(1, deltaSeconds * 1.8);
     this.head.x += Math.cos(this.heading) * this.speed * deltaSeconds;
     this.head.y += Math.sin(this.heading) * this.speed * deltaSeconds;
-    this.phase += deltaSeconds * (2.2 + this.speed / (18 * this.scale));
+    this.phase += deltaSeconds * (2 + this.speed / (18 * this.scale));
     this.followHead();
   }
 
@@ -82,18 +103,21 @@ export class Koi {
   }
 
   pose(viewOffsetY: number): KoiPose {
-    const undulation = 5 * this.scale * (0.35 + Math.min(1, this.speed / (70 * this.scale)));
-    const rawNormals = this.spine.map((point, index) =>
-      index === 0 ? normalBetween(this.spine[1], point) : normalBetween(point, this.spine[index - 1]),
-    );
+    const undulation = 5 * this.scale * (0.4 + Math.min(1, this.speed / (70 * this.scale)));
+    const rawNormals = normalsAlong(this.spine);
     const spine = this.spine.map((point, index) => {
-      const sway = Math.sin(this.phase - index * 0.55) * undulation * Math.pow(index / SEGMENT_COUNT, 1.6);
+      const reach = Math.pow(index / BODY_POINTS, 1.6);
+      const sway = Math.sin(this.phase - index * 0.5) * undulation * reach;
       return { x: point.x + rawNormals[index].x * sway, y: point.y + rawNormals[index].y * sway - viewOffsetY };
     });
-    const normals = spine.map((point, index) =>
-      index === 0 ? normalBetween(spine[1], point) : normalBetween(point, spine[index - 1]),
-    );
-    const halfWidths = spine.map((_, index) => bodyHalfWidth(index / (SEGMENT_COUNT - 1)) * this.scale);
-    return { spine, normals, halfWidths, phase: this.phase, scale: this.scale, speed: this.speed };
+    return {
+      spine,
+      normals: normalsAlong(spine),
+      halfWidths: spine.map((_, index) => bodyHalfWidth(index) * this.scale),
+      phase: this.phase,
+      scale: this.scale,
+      speed: this.speed,
+      pattern: this.pattern,
+    };
   }
 }

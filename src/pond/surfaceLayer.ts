@@ -1,5 +1,5 @@
 import type { Koi } from "./koi";
-import { drawPaintedKoi, drawSketchKoi } from "./koiDrawing";
+import { drawInkKoi, drawPaintedKoi } from "./koiDrawing";
 import type { Frame } from "./backdrop";
 import { pondState } from "./pondState";
 import { airRegion, waterRegion } from "./water";
@@ -28,18 +28,24 @@ function drawRipples(ctx: Context, frame: Frame, nowMilliseconds: number) {
   ctx.globalAlpha = 1;
 }
 
-export function drawSurfaceLayer(ctx: Context, frame: Frame, koi: Koi, nowMilliseconds: number) {
+function isOnScreen(koi: Koi, frame: Frame) {
+  const head = koi.head.y - frame.scrollY;
+  const reach = 260 * koi.scale;
+  return head > -reach && head < frame.height + reach;
+}
+
+export function drawSurfaceLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
   ctx.clearRect(0, 0, frame.width, frame.height);
-  const pose = koi.pose(frame.scrollY);
+  const poses = school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY));
 
   ctx.save();
   ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
   drawRipples(ctx, frame, nowMilliseconds);
-  drawPaintedKoi(ctx, pose, frame.palette);
+  poses.forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette));
   ctx.restore();
 
   ctx.save();
   ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds));
-  drawSketchKoi(ctx, pose, frame.palette);
+  poses.forEach((pose) => drawInkKoi(ctx, pose, frame.palette));
   ctx.restore();
 }
