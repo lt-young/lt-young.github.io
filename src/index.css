@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme static {
+  --color-paper: #ece6da;
+  --color-graphite: #27241f;
+  --color-graphite-soft: #6a6357;
+  --color-pond: #0c1733;
+  --color-pond-deep: #050a19;
+  --color-foam: #ece5d7;
+  --color-foam-dim: #9ea6ba;
+  --color-koi: #e0592a;
+  --color-koi-cream: #f4efe5;
+
+  --font-sans: "Zen Kaku Gothic New", ui-sans-serif, system-ui, sans-serif;
+
+  --ease-surface: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    background: var(--color-pond-deep);
+    color-scheme: dark;
+  }
+
+  body {
+    @apply font-sans text-foam antialiased;
+    font-size: 1rem;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--color-koi);
+    color: var(--color-koi-cream);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-koi);
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  .type-name {
+    @apply text-3xl font-medium text-graphite sm:text-4xl;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  .type-lede {
+    @apply text-base text-graphite-soft;
+  }
+
+  .type-statement {
+    @apply text-xl text-foam sm:text-2xl;
+    line-height: 1.5;
+    text-wrap: balance;
+  }
+
+  .type-work-title {
+    @apply text-base font-medium text-foam;
+  }
+
+  .type-work-detail {
+    @apply text-sm text-foam-dim;
+  }
+}
