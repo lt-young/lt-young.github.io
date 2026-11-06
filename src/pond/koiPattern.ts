@@ -28,7 +28,7 @@ const RECIPES: Record<KoiVariety, VarietyRecipe> = {
 };
 
 const WOBBLE_POINTS = 11;
-const PATCHED_LENGTH = 11.5;
+const PATCHED_LENGTH = 13.5;
 
 function seededRandom(seed: number) {
   let state = Math.floor(seed * 2654435761) >>> 0;

@@ -6,14 +6,15 @@ import { bristlePattern } from "./brushTexture";
 import {
   barbels,
   bodyPath,
+  caudalFin,
+  dorsalRidge,
   forwardOf,
   eyes,
   patchOutline,
   sideFins,
   smoothPath,
   streakPoints,
-  tailStrands,
-  type SideFin,
+  type Fin,
 } from "./koiShapes";
 
 type Context = CanvasRenderingContext2D;
@@ -34,17 +35,11 @@ function strokeLine(ctx: Context, points: Point[], width: number) {
   ctx.stroke(smoothPath(points));
 }
 
-function strokeRays(ctx: Context, fins: SideFin[], width: number) {
+function strokeRays(ctx: Context, fins: Fin[], width: number) {
   ctx.lineWidth = width;
   for (const fin of fins) {
     for (const ray of fin.rays) ctx.stroke(smoothPath(ray));
   }
-}
-
-function tailMembrane(strands: Point[][]) {
-  const outerLeft = strands[0];
-  const outerRight = strands[strands.length - 1];
-  return smoothPath([...outerLeft, ...[...outerRight].reverse()], new Path2D(), true);
 }
 
 function drawEyes(ctx: Context, pose: KoiPose, pupil: string, glint: string | null) {
@@ -63,16 +58,13 @@ function drawEyes(ctx: Context, pose: KoiPose, pupil: string, glint: string | nu
 
 export function drawInkKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
   const body = bodyPath(pose);
-  const fins = sideFins(pose);
-  const strands = tailStrands(pose);
+  const fins = [...caudalFin(pose), ...sideFins(pose)];
   ctx.save();
   ctx.strokeStyle = palette.chalk;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
   ctx.fillStyle = palette.night;
-  ctx.fill(tailMembrane(strands));
-  strands.forEach((strand, index) => strokeLine(ctx, strand, index === 0 || index === strands.length - 1 ? 1.7 : 0.9));
   fins.forEach((fin) => ctx.fill(fin.outline));
   strokeRays(ctx, fins, 0.8);
   ctx.lineWidth = 1.5;
@@ -86,13 +78,16 @@ export function drawInkKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
   ctx.restore();
   ctx.lineWidth = 2.2 * Math.max(0.8, pose.scale);
   ctx.stroke(body);
+  ctx.globalAlpha = 0.6;
+  strokeLine(ctx, dorsalRidge(pose), 1.2);
+  ctx.globalAlpha = 1;
   ctx.lineWidth = 0.9;
   barbels(pose).forEach((barbel) => ctx.stroke(smoothPath(barbel)));
   drawEyes(ctx, pose, palette.chalk, null);
   ctx.restore();
 }
 
-function drawShadow(ctx: Context, pose: KoiPose, body: Path2D, fins: SideFin[]) {
+function drawShadow(ctx: Context, pose: KoiPose, body: Path2D, fins: Fin[]) {
   ctx.save();
   ctx.shadowColor = "rgba(1, 4, 14, 0.55)";
   ctx.shadowBlur = 18 * pose.scale;
@@ -104,21 +99,18 @@ function drawShadow(ctx: Context, pose: KoiPose, body: Path2D, fins: SideFin[]) 
   ctx.restore();
 }
 
-function drawFeatheredTail(ctx: Context, pose: KoiPose, palette: PondPalette) {
-  const strands = tailStrands(pose);
+function drawCaudalFin(ctx: Context, pose: KoiPose, palette: PondPalette) {
+  const lobes = caudalFin(pose);
   ctx.fillStyle = palette.koiCream;
-  ctx.globalAlpha = 0.78;
-  ctx.fill(tailMembrane(strands));
-  ctx.strokeStyle = palette.koiCream;
-  ctx.globalAlpha = 0.55;
-  strands.forEach((strand) => strokeLine(ctx, strand, 3.2 * pose.scale));
+  ctx.globalAlpha = 0.88;
+  lobes.forEach((lobe) => ctx.fill(lobe.outline));
   ctx.strokeStyle = "#ffffff";
-  ctx.globalAlpha = 0.95;
-  strands.forEach((strand) => strokeLine(ctx, strand, 1 * pose.scale));
+  ctx.globalAlpha = 0.85;
+  strokeRays(ctx, lobes, 0.9 * pose.scale);
   ctx.globalAlpha = 1;
 }
 
-function drawTranslucentFins(ctx: Context, pose: KoiPose, fins: SideFin[], palette: PondPalette) {
+function drawTranslucentFins(ctx: Context, pose: KoiPose, fins: Fin[], palette: PondPalette) {
   ctx.fillStyle = palette.koiCream;
   ctx.strokeStyle = palette.koiCream;
   ctx.globalAlpha = 0.82;
@@ -193,7 +185,9 @@ function paintShading(ctx: Context, pose: KoiPose, body: Path2D, palette: PondPa
   ctx.strokeStyle = "#ffffff";
   ctx.globalAlpha = 0.28;
   ctx.lineCap = "round";
-  strokeLine(ctx, pose.spine.slice(1, 10), 5 * pose.scale);
+  strokeLine(ctx, pose.spine.slice(1, 12), 5 * pose.scale);
+  ctx.globalAlpha = 0.35;
+  strokeLine(ctx, dorsalRidge(pose), 2.4 * pose.scale);
   ctx.globalAlpha = 1;
 }
 
@@ -205,7 +199,7 @@ export function drawPaintedKoi(ctx: Context, pose: KoiPose, palette: PondPalette
   ctx.lineCap = "round";
   ctx.fillStyle = palette.koiCream;
   drawShadow(ctx, pose, body, fins);
-  drawFeatheredTail(ctx, pose, palette);
+  drawCaudalFin(ctx, pose, palette);
   drawTranslucentFins(ctx, pose, fins, palette);
 
   ctx.fillStyle = pose.pattern.colouredBody ? pigmentOf(pose, palette) : palette.koiCream;
