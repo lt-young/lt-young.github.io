@@ -10,6 +10,8 @@ export type PondPalette = {
   koiGlow: string;
   koiCream: string;
   koiShade: string;
+  shimmer: string;
+  leaf: string;
 };
 
 function token(styles: CSSStyleDeclaration, name: string) {
@@ -30,5 +32,7 @@ export function readPalette(): PondPalette {
     koiGlow: token(styles, "koi-glow"),
     koiCream: token(styles, "koi-cream"),
     koiShade: token(styles, "koi-shade"),
+    shimmer: token(styles, "shimmer"),
+    leaf: token(styles, "leaf"),
   };
 }

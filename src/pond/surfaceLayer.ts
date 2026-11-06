@@ -3,6 +3,7 @@ import { drawInkKoi, drawPaintedKoi } from "./koiDrawing";
 import type { Frame } from "./backdrop";
 import { pondState } from "./pondState";
 import { airRegion, waterRegion } from "./water";
+import { drawWaterLight } from "./waterLight";
 
 type Context = CanvasRenderingContext2D;
 
@@ -42,6 +43,7 @@ export function drawSurfaceLayer(ctx: Context, frame: Frame, school: Koi[], nowM
   ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
   drawRipples(ctx, frame, nowMilliseconds);
   poses.forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette));
+  drawWaterLight(ctx, frame);
   ctx.restore();
 
   ctx.save();
