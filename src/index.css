@@ -15,8 +15,10 @@
   --color-koi-glow: #f6c35a;
   --color-koi-cream: #f6f1e7;
   --color-koi-shade: #9cc8c4;
+  --color-shimmer: #bfe9e6;
+  --color-leaf: #6cbf8c;
 
-  --font-sans: "Zen Kaku Gothic New", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
 
   --ease-surface: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -28,7 +30,7 @@
   }
 
   body {
-    @apply font-sans text-foam antialiased;
+    @apply font-serif text-foam antialiased;
     font-size: 1rem;
     line-height: 1.6;
     text-wrap: pretty;
@@ -67,6 +69,6 @@
   }
 
   .type-work-detail {
-    @apply text-sm text-foam-dim;
+    @apply text-sm font-medium text-foam-dim;
   }
 }
