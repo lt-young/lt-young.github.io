@@ -4,8 +4,12 @@ export type PondPalette = {
   pond: string;
   pondDeep: string;
   foam: string;
-  koi: string;
+  koiRed: string;
+  koiOrange: string;
+  koiGold: string;
+  koiGlow: string;
   koiCream: string;
+  koiShade: string;
 };
 
 function token(styles: CSSStyleDeclaration, name: string) {
@@ -20,7 +24,11 @@ export function readPalette(): PondPalette {
     pond: token(styles, "pond"),
     pondDeep: token(styles, "pond-deep"),
     foam: token(styles, "foam"),
-    koi: token(styles, "koi"),
+    koiRed: token(styles, "koi-red"),
+    koiOrange: token(styles, "koi-orange"),
+    koiGold: token(styles, "koi-gold"),
+    koiGlow: token(styles, "koi-glow"),
     koiCream: token(styles, "koi-cream"),
+    koiShade: token(styles, "koi-shade"),
   };
 }
