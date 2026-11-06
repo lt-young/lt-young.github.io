@@ -40,7 +40,7 @@ function drawDialTicks(ctx: Context, frame: Frame) {
   if (centerY + dial.radius < 0) return;
   ctx.save();
   ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds));
-  ctx.strokeStyle = palette.graphite;
+  ctx.strokeStyle = palette.chalk;
   ctx.lineCap = "round";
   for (let tick = 0; tick < 60; tick++) {
     const isHour = tick % 5 === 0;
@@ -66,9 +66,9 @@ function drawWater(ctx: Context, frame: Frame) {
   ctx.fill(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
 
   ctx.save();
-  ctx.strokeStyle = frame.palette.graphite;
-  ctx.lineWidth = 1.4;
-  ctx.globalAlpha = 0.8;
+  ctx.strokeStyle = frame.palette.chalk;
+  ctx.lineWidth = 1.2;
+  ctx.globalAlpha = 0.35;
   ctx.stroke(surfaceLine(frame.width, frame.surfaceScreenY, frame.seconds));
   ctx.restore();
 }
@@ -85,7 +85,7 @@ function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
 }
 
 export function drawBackdrop(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
-  ctx.fillStyle = frame.palette.paper;
+  ctx.fillStyle = frame.palette.night;
   ctx.fillRect(0, 0, frame.width, frame.height);
   drawDialTicks(ctx, frame);
   drawWater(ctx, frame);

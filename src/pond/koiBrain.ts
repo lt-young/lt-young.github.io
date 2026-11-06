@@ -8,6 +8,7 @@ export type Surroundings = {
   seconds: number;
   epochMilliseconds: number;
   scrollY: number;
+  scrollVelocity: number;
   viewportWidth: number;
   viewportHeight: number;
   dial: Dial;
@@ -52,7 +53,14 @@ function secondHandGoal(world: Surroundings, swimmer: Swimmer): Goal {
   return { target, speed: lagging ? Math.max(orbitSpeed, 160 * swimmer.scale) : orbitSpeed };
 }
 
-export function timekeeperGoal(world: Surroundings, swimmer: Swimmer): Goal {
+export const ESCORT_PERSONALITY = 4;
+
+export function hasLeftTheDial(world: Surroundings) {
+  return world.scrollY > world.viewportHeight * 0.6;
+}
+
+export function timekeeperGoal(world: Surroundings, swimmer: Swimmer, school: Swimmer[]): Goal {
+  if (hasLeftTheDial(world)) return pondKoiGoal(world, swimmer, ESCORT_PERSONALITY, school);
   const goal = lureGoal(world, swimmer) ?? curiosityGoal(world, swimmer) ?? secondHandGoal(world, swimmer);
   return withCatchUp(goal, swimmer);
 }
@@ -72,6 +80,14 @@ function circlingGoal(world: Surroundings, swimmer: Swimmer): Goal | null {
   return { target, speed: 80 * swimmer.scale };
 }
 
+const MAX_CURRENT_LEAD = 0.35;
+
+function currentLead(world: Surroundings) {
+  const lead = world.scrollVelocity * 0.5;
+  const limit = world.viewportHeight * MAX_CURRENT_LEAD;
+  return Math.max(-limit, Math.min(limit, lead));
+}
+
 function wanderGoal(world: Surroundings, swimmer: Swimmer, personality: number): Goal {
   const time = world.seconds + personality * 17;
   const lowestAllowed = surfaceDocumentY(world.viewportHeight) + 90 * swimmer.scale;
@@ -79,10 +95,13 @@ function wanderGoal(world: Surroundings, swimmer: Swimmer, personality: number):
     x: world.viewportWidth * (0.5 + 0.38 * Math.sin(time * (0.09 + personality * 0.025))),
     y: Math.max(
       lowestAllowed,
-      world.scrollY + world.viewportHeight * (0.5 + 0.36 * Math.sin(time * (0.15 + personality * 0.03) + personality)),
+      world.scrollY +
+        currentLead(world) +
+        world.viewportHeight * (0.5 + 0.3 * Math.sin(time * (0.15 + personality * 0.03) + personality)),
     ),
   };
-  return { target, speed: (45 + personality * 8) * swimmer.scale };
+  const drift = Math.min(260, Math.abs(world.scrollVelocity) * 0.35);
+  return { target, speed: (45 + personality * 8) * swimmer.scale + drift };
 }
 
 function keepApart(goal: Goal, swimmer: Swimmer, school: Swimmer[]): Goal {

@@ -66,11 +66,11 @@ export function drawInkKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
   const fins = sideFins(pose);
   const strands = tailStrands(pose);
   ctx.save();
-  ctx.strokeStyle = palette.graphite;
+  ctx.strokeStyle = palette.chalk;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  ctx.fillStyle = palette.paper;
+  ctx.fillStyle = palette.night;
   ctx.fill(tailMembrane(strands));
   strands.forEach((strand, index) => strokeLine(ctx, strand, index === 0 || index === strands.length - 1 ? 1.7 : 0.9));
   fins.forEach((fin) => ctx.fill(fin.outline));
@@ -81,14 +81,14 @@ export function drawInkKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
   ctx.fill(body);
   ctx.save();
   ctx.clip(body);
-  ctx.fillStyle = palette.graphite;
+  ctx.fillStyle = palette.chalk;
   for (const patch of pose.pattern.patches) ctx.fill(patchOutline(pose, patch, 0.85));
   ctx.restore();
   ctx.lineWidth = 2.2 * Math.max(0.8, pose.scale);
   ctx.stroke(body);
   ctx.lineWidth = 0.9;
   barbels(pose).forEach((barbel) => ctx.stroke(smoothPath(barbel)));
-  drawEyes(ctx, pose, palette.graphite, null);
+  drawEyes(ctx, pose, palette.chalk, null);
   ctx.restore();
 }
 
