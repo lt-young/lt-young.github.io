@@ -1,6 +1,6 @@
 export type PondPalette = {
-  paper: string;
-  graphite: string;
+  night: string;
+  chalk: string;
   pond: string;
   pondDeep: string;
   foam: string;
@@ -19,8 +19,8 @@ function token(styles: CSSStyleDeclaration, name: string) {
 export function readPalette(): PondPalette {
   const styles = getComputedStyle(document.documentElement);
   return {
-    paper: token(styles, "paper"),
-    graphite: token(styles, "graphite"),
+    night: token(styles, "night"),
+    chalk: token(styles, "chalk"),
     pond: token(styles, "pond"),
     pondDeep: token(styles, "pond-deep"),
     foam: token(styles, "foam"),

@@ -1,17 +1,17 @@
 import { dialFor, pointOnDial, secondHandAngle } from "./dial";
 import { Koi } from "./koi";
-import { pondKoiGoal, timekeeperGoal, type Surroundings } from "./koiBrain";
+import { hasLeftTheDial, pondKoiGoal, timekeeperGoal, type Surroundings } from "./koiBrain";
 import type { KoiVariety } from "./koiPattern";
 import { addRipple } from "./pondState";
 import { isUnderwater, surfaceDocumentY } from "./water";
 
 type PondKoiRecipe = { variety: KoiVariety; seed: number; size: number };
 
+const CURRENT_CARRY = 0.82;
+
 const POND_KOI: PondKoiRecipe[] = [
   { variety: "orange", seed: 2, size: 1.15 },
   { variety: "gold", seed: 3, size: 0.95 },
-  { variety: "hiOrange", seed: 4, size: 1.05 },
-  { variety: "kohaku", seed: 5, size: 0.85 },
 ];
 
 export function koiScaleFor(width: number, height: number) {
@@ -31,7 +31,7 @@ export class School {
     this.pondKoi = POND_KOI.map(
       (recipe, index) =>
         new Koi(
-          { x: width * (0.2 + index * 0.2), y: surface + height * (0.35 + (index % 2) * 0.25) },
+          { x: width * (0.3 + index * 0.4), y: surface + height * (0.35 + (index % 2) * 0.25) },
           scale,
           recipe.variety,
           recipe.seed,
@@ -49,15 +49,28 @@ export class School {
     this.all.forEach((koi) => koi.resize(scale));
   }
 
-  swim(world: Surroundings, deltaSeconds: number) {
-    const keeperGoal = timekeeperGoal(world, this.timekeeper);
+  swim(world: Surroundings, deltaSeconds: number, scrollDelta: number) {
+    this.carryWithCurrent(world, scrollDelta);
+    const keeperGoal = timekeeperGoal(world, this.timekeeper, this.all);
     this.timekeeper.swimToward(keeperGoal.target, keeperGoal.speed, deltaSeconds);
     this.pondKoi.forEach((koi, personality) => {
       this.keepNearView(koi, world);
-      const goal = pondKoiGoal(world, koi, personality, this.pondKoi);
+      const goal = pondKoiGoal(world, koi, personality, this.all);
       koi.swimToward(goal.target, goal.speed, deltaSeconds);
     });
     this.all.forEach((koi) => this.splashWhenCrossingSurface(koi, world));
+  }
+
+  private carryWithCurrent(world: Surroundings, scrollDelta: number) {
+    if (scrollDelta === 0) return;
+    const shallowest = surfaceDocumentY(world.viewportHeight) + 60;
+    const travellers = hasLeftTheDial(world) ? this.all : this.pondKoi;
+    for (const koi of travellers) {
+      if (!isUnderwater(koi.head.x, koi.head.y, world.viewportHeight, world.seconds)) continue;
+      const carry = scrollDelta * CURRENT_CARRY;
+      if (koi.head.y + carry < shallowest) continue;
+      koi.shiftBy({ x: 0, y: carry });
+    }
   }
 
   private keepNearView(koi: Koi, world: Surroundings) {

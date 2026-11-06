@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme static {
-  --color-paper: #ece6da;
-  --color-graphite: #27241f;
-  --color-graphite-soft: #6a6357;
+  --color-night: #04081a;
+  --color-chalk: #ece5d7;
+  --color-chalk-dim: #8f97ac;
   --color-pond: #0c1733;
   --color-pond-deep: #050a19;
   --color-foam: #ece5d7;
@@ -47,13 +47,13 @@
 
 @layer components {
   .type-name {
-    @apply text-3xl font-medium text-graphite sm:text-4xl;
+    @apply text-3xl font-medium text-chalk sm:text-4xl;
     line-height: 1.15;
     text-wrap: balance;
   }
 
   .type-lede {
-    @apply text-base text-graphite-soft;
+    @apply text-base text-chalk-dim;
   }
 
   .type-statement {

@@ -84,6 +84,8 @@ export function Pond() {
     const palette = readPalette();
     const school = new School(window.innerWidth, window.innerHeight);
     let previous = performance.now();
+    let previousScrollY = window.scrollY;
+    let scrollVelocity = 0;
     let frameId = 0;
 
     const onResize = () => {
@@ -96,17 +98,22 @@ export function Pond() {
       const deltaSeconds = Math.min(0.05, (now - previous) / 1000);
       previous = now;
       const frame = buildFrame(reducedMotion ? 0 : now / 1000, palette);
+      const scrollDelta = frame.scrollY - previousScrollY;
+      previousScrollY = frame.scrollY;
+      if (deltaSeconds > 0) scrollVelocity += (scrollDelta / deltaSeconds - scrollVelocity) * 0.12;
       if (!reducedMotion) {
         school.swim(
           {
             seconds: now / 1000,
             epochMilliseconds: Date.now(),
             scrollY: frame.scrollY,
+            scrollVelocity,
             viewportWidth: frame.width,
             viewportHeight: frame.height,
             dial: frame.dial,
           },
           deltaSeconds,
+          scrollDelta,
         );
       }
       if (backdrop) drawBackdrop(backdrop, frame, grain);
