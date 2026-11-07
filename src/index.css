@@ -1,12 +1,6 @@
 @import "tailwindcss";
 
 @font-face {
-  font-family: "Blacksword";
-  src: url("/fonts/blacksword.woff2") format("woff2");
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Milesdane";
   src: url("/fonts/milesdane.woff2") format("woff2");
   font-display: swap;
@@ -30,9 +24,8 @@
   --color-shimmer: #bfe9e6;
   --color-leaf: #6cbf8c;
 
-  /* Typography hierarchy: display (name), serif (lede, statement),
-     title (work titles), sans (body, details, small text). */
-  --font-display: "Blacksword", "Shippori Mincho", cursive;
+  /* Typography hierarchy: title (name and work titles), serif (lede,
+     statement), sans (body, details, small text). */
   --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
   --font-title: "Milesdane", "Shippori Mincho", ui-serif, Georgia, serif;
   --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
@@ -66,8 +59,8 @@
 
 @layer components {
   .type-name {
-    @apply font-display text-5xl font-normal text-chalk sm:text-6xl;
-    line-height: 1.2;
+    @apply font-title text-4xl font-normal text-chalk sm:text-5xl;
+    line-height: 1.1;
     text-wrap: balance;
   }
 
