@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Milesdane";
+  src: url("/fonts/milesdane.woff2") format("woff2");
+  font-display: swap;
+}
+
 @theme static {
   --color-night: #04081a;
   --color-chalk: #ece5d7;
@@ -18,7 +24,12 @@
   --color-shimmer: #bfe9e6;
   --color-leaf: #6cbf8c;
 
+  /* Typography hierarchy: script (name), serif (lede, statement),
+     title (work titles), sans (body, details, small text). */
+  --font-script: "Pinyon Script", "Shippori Mincho", cursive;
   --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
+  --font-title: "Milesdane", "Shippori Mincho", ui-serif, Georgia, serif;
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
 
   --ease-surface: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -30,7 +41,7 @@
   }
 
   body {
-    @apply font-serif text-foam antialiased;
+    @apply font-sans text-foam antialiased;
     font-size: 1rem;
     line-height: 1.6;
     text-wrap: pretty;
@@ -49,26 +60,49 @@
 
 @layer components {
   .type-name {
-    @apply text-3xl font-medium text-chalk sm:text-4xl;
-    line-height: 1.15;
+    @apply font-script text-5xl font-normal text-chalk sm:text-6xl;
+    line-height: 1.2;
+    /* Ethereal glow and slow shimmer, after the "Follow your current" cover. */
+    background: linear-gradient(100deg, #f6f1e7 0%, #f6f1e7 30%, #cdeee9 52%, #f3d9a4 78%, #f6f1e7 100%);
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgb(191 233 230 / 0.35)) drop-shadow(0 0 34px rgb(246 195 90 / 0.12));
+    animation: name-shimmer 9s ease-in-out infinite alternate;
     text-wrap: balance;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .type-name {
+      animation: none;
+    }
+  }
+
   .type-lede {
-    @apply text-base text-chalk-dim;
+    @apply font-serif text-base text-chalk-dim;
   }
 
   .type-statement {
-    @apply text-xl text-foam sm:text-2xl;
+    @apply font-serif text-xl text-foam sm:text-2xl;
     line-height: 1.5;
     text-wrap: balance;
   }
 
   .type-work-title {
-    @apply text-base font-medium text-foam;
+    @apply font-title text-lg font-normal text-foam;
   }
 
   .type-work-detail {
-    @apply text-sm font-medium text-foam-dim;
+    @apply font-sans text-sm text-foam-dim;
+  }
+}
+
+@keyframes name-shimmer {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 100% 0;
   }
 }
