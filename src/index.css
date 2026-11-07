@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Blacksword";
+  src: url("/fonts/blacksword.woff2") format("woff2");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Milesdane";
+  src: url("/fonts/milesdane.woff2") format("woff2");
+  font-display: swap;
+}
+
 @theme static {
   --color-night: #04081a;
   --color-chalk: #ece5d7;
@@ -18,7 +30,12 @@
   --color-shimmer: #bfe9e6;
   --color-leaf: #6cbf8c;
 
+  /* Typography hierarchy: display (name), serif (lede, statement),
+     title (work titles), sans (body, details, small text). */
+  --font-display: "Blacksword", "Shippori Mincho", cursive;
   --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
+  --font-title: "Milesdane", "Shippori Mincho", ui-serif, Georgia, serif;
+  --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
 
   --ease-surface: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -30,7 +47,7 @@
   }
 
   body {
-    @apply font-serif text-foam antialiased;
+    @apply font-sans text-foam antialiased;
     font-size: 1rem;
     line-height: 1.6;
     text-wrap: pretty;
@@ -49,26 +66,26 @@
 
 @layer components {
   .type-name {
-    @apply text-3xl font-medium text-chalk sm:text-4xl;
-    line-height: 1.15;
+    @apply font-display text-5xl font-normal text-chalk sm:text-6xl;
+    line-height: 1.2;
     text-wrap: balance;
   }
 
   .type-lede {
-    @apply text-base text-chalk-dim;
+    @apply font-serif text-base text-chalk-dim;
   }
 
   .type-statement {
-    @apply text-xl text-foam sm:text-2xl;
+    @apply font-serif text-xl text-foam sm:text-2xl;
     line-height: 1.5;
     text-wrap: balance;
   }
 
   .type-work-title {
-    @apply text-base font-medium text-foam;
+    @apply font-title text-lg font-normal text-foam;
   }
 
   .type-work-detail {
-    @apply text-sm font-medium text-foam-dim;
+    @apply font-sans text-sm text-foam-dim;
   }
 }
