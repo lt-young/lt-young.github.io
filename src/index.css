@@ -24,8 +24,9 @@
   --color-shimmer: #bfe9e6;
   --color-leaf: #6cbf8c;
 
-  /* Typography hierarchy: title (name and work titles), serif (lede,
-     statement), sans (body, details, small text). */
+  /* Typography hierarchy: script (name), serif (lede, statement),
+     title (work titles), sans (body, details, small text). */
+  --font-script: "Pinyon Script", "Shippori Mincho", cursive;
   --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
   --font-title: "Milesdane", "Shippori Mincho", ui-serif, Georgia, serif;
   --font-sans: Arial, "Helvetica Neue", Helvetica, sans-serif;
@@ -59,9 +60,23 @@
 
 @layer components {
   .type-name {
-    @apply font-title text-4xl font-normal text-chalk sm:text-5xl;
-    line-height: 1.1;
+    @apply font-script text-5xl font-normal text-chalk sm:text-6xl;
+    line-height: 1.2;
+    /* Ethereal glow and slow shimmer, after the "Follow your current" cover. */
+    background: linear-gradient(100deg, #f6f1e7 0%, #f6f1e7 30%, #cdeee9 52%, #f3d9a4 78%, #f6f1e7 100%);
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgb(191 233 230 / 0.35)) drop-shadow(0 0 34px rgb(246 195 90 / 0.12));
+    animation: name-shimmer 9s ease-in-out infinite alternate;
     text-wrap: balance;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .type-name {
+      animation: none;
+    }
   }
 
   .type-lede {
@@ -80,5 +95,14 @@
 
   .type-work-detail {
     @apply font-sans text-sm text-foam-dim;
+  }
+}
+
+@keyframes name-shimmer {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 100% 0;
   }
 }
