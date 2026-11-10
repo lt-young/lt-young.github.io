@@ -1258,9 +1258,12 @@ type LayerName = "Water" | "Surface"
 const RIPPLE_SPACING = 70
 const LURE_SECONDS = 2.2
 
+// Framer can mount the page once per breakpoint (Desktop, Tablet, Phone) and hide the ones
+// that don't match, so each layer keeps every canvas it is given and draws to the visible ones.
 type Engine = {
-  canvases: Partial<Record<LayerName, HTMLCanvasElement>>
+  canvases: Record<LayerName, Set<HTMLCanvasElement>>
   users: number
+  redraw: () => void
   stop: () => void
 }
 
@@ -1279,12 +1282,16 @@ function fitCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
   return ctx
 }
 
+function isShown(canvas: HTMLCanvasElement) {
+  return canvas.isConnected && canvas.getClientRects().length > 0
+}
+
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }
 
 function startEngine(animate: boolean): Engine {
-  const canvases: Engine["canvases"] = {}
+  const canvases: Engine["canvases"] = { Water: new Set(), Surface: new Set() }
   const grain = createGrain()
   const reducedMotion = prefersReducedMotion() || !animate
   const school = new School(window.innerWidth, window.innerHeight)
@@ -1344,11 +1351,24 @@ function startEngine(animate: boolean): Engine {
         scrollDelta
       )
     }
-    const water = canvases.Water && fitCanvas(canvases.Water, width, height)
-    const surface = canvases.Surface && fitCanvas(canvases.Surface, width, height)
-    if (water) drawBackdrop(water, frame, grain)
-    if (surface) drawSurfaceLayer(surface, frame, school.all, now)
+    for (const canvas of canvases.Water) {
+      if (!isShown(canvas)) continue
+      const ctx = fitCanvas(canvas, width, height)
+      if (ctx) drawBackdrop(ctx, frame, grain)
+    }
+    for (const canvas of canvases.Surface) {
+      if (!isShown(canvas)) continue
+      const ctx = fitCanvas(canvas, width, height)
+      if (ctx) drawSurfaceLayer(ctx, frame, school.all, now)
+    }
     if (animate) frameId = requestAnimationFrame(render)
+  }
+
+  // On the Framer canvas nothing animates, so draw again whenever a layer is added.
+  const redraw = () => {
+    if (animate) return
+    cancelAnimationFrame(frameId)
+    frameId = requestAnimationFrame(render)
   }
 
   if (!reducedMotion) {
@@ -1361,6 +1381,7 @@ function startEngine(animate: boolean): Engine {
   return {
     canvases,
     users: 0,
+    redraw,
     stop: () => {
       cancelAnimationFrame(frameId)
       window.removeEventListener("pointermove", onMove)
@@ -1391,10 +1412,11 @@ export default function KoiPond({ layer = "Water", style }: KoiPondProps) {
     const animate = RenderTarget.current() === RenderTarget.preview || RenderTarget.current() === RenderTarget.export
     const live = typeof window !== "undefined" && !RenderTarget.hasRestrictions()
     const engine = (engineGlobal.__koiPondEngine ??= startEngine(animate && live))
-    engine.canvases[layer] = canvas
+    engine.canvases[layer].add(canvas)
     engine.users += 1
+    engine.redraw()
     return () => {
-      if (engine.canvases[layer] === canvas) delete engine.canvases[layer]
+      engine.canvases[layer].delete(canvas)
       engine.users -= 1
       if (engine.users <= 0) {
         engine.stop()
