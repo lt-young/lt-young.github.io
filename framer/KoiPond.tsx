@@ -50,6 +50,8 @@ type PondState = {
   pointer: Point & { movedAt: number };
   lure: (Point & { until: number }) | null;
   surfacedElement: HTMLElement | null;
+  // The piece under the pointer: every koi in the pond comes to circle it.
+  pointedElement?: HTMLElement | null;
   ripples: Ripple[];
 };
 
@@ -871,16 +873,16 @@ function hasLeftTheDial(world: Surroundings) {
 }
 
 function timekeeperGoal(world: Surroundings, swimmer: Swimmer, school: Swimmer[]): Goal {
-  if (hasLeftTheDial(world)) return pondKoiGoal(world, swimmer, ESCORT_PERSONALITY, school);
+  if (hasLeftTheDial(world) || pondState.pointedElement) return pondKoiGoal(world, swimmer, ESCORT_PERSONALITY, school);
   const goal = lureGoal(world, swimmer) ?? curiosityGoal(world, swimmer) ?? secondHandGoal(world, swimmer);
   return withCatchUp(goal, swimmer);
 }
 
-function circlingGoal(world: Surroundings, swimmer: Swimmer): Goal | null {
-  const element = pondState.surfacedElement;
-  if (!element) return null;
+function circlingGoal(world: Surroundings, swimmer: Swimmer, element: HTMLElement | null | undefined, offset = 0, speed = 80): Goal | null {
+  if (!element || !element.isConnected) return null;
   const rect = element.getBoundingClientRect();
-  const angle = world.seconds * 0.22;
+  if (rect.width === 0 && rect.height === 0) return null;
+  const angle = world.seconds * 0.22 + offset;
   const visibleTop = Math.max(rect.top, 0);
   const visibleBottom = Math.min(rect.bottom, world.viewportHeight);
   const halfHeight = Math.max(0, (visibleBottom - visibleTop) / 2);
@@ -888,7 +890,7 @@ function circlingGoal(world: Surroundings, swimmer: Swimmer): Goal | null {
     x: rect.left + rect.width / 2 + Math.cos(angle) * (rect.width / 2 + 36 * swimmer.scale),
     y: world.scrollY + visibleTop + halfHeight + Math.sin(angle) * (halfHeight + 24 * swimmer.scale),
   };
-  return { target, speed: 80 * swimmer.scale };
+  return { target, speed: speed * swimmer.scale };
 }
 
 const MAX_CURRENT_LEAD = 0.35;
@@ -931,9 +933,12 @@ function keepApart(goal: Goal, swimmer: Swimmer, school: Swimmer[]): Goal {
 
 function pondKoiGoal(world: Surroundings, swimmer: Swimmer, personality: number, school: Swimmer[]): Goal {
   const leadsTheCircle = personality === 0;
+  // Spread the koi evenly around the hovered piece so they circle it together.
+  const placeInCircle = (personality === ESCORT_PERSONALITY ? 2 : personality) * ((Math.PI * 2) / 3);
   const goal =
     lureGoal(world, swimmer) ??
-    (leadsTheCircle ? circlingGoal(world, swimmer) : null) ??
+    circlingGoal(world, swimmer, pondState.pointedElement, placeInCircle, 110) ??
+    (leadsTheCircle ? circlingGoal(world, swimmer, pondState.surfacedElement) : null) ??
     wanderGoal(world, swimmer, personality);
   return withCatchUp(keepApart(goal, swimmer, school), swimmer);
 }

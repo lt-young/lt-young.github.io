@@ -8,7 +8,7 @@ import { forwardRef, useEffect, useRef, useState, type ComponentType } from "rea
 const SURFACING_BAND = 0.42
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)"
 
-type PondState = { surfacedElement: HTMLElement | null }
+type PondState = { surfacedElement: HTMLElement | null; pointedElement?: HTMLElement | null }
 const pondGlobal = globalThis as unknown as { __koiPondState?: PondState }
 
 type Registry = {
@@ -35,7 +35,10 @@ function surfaced(reg: Registry) {
 
 function notify(reg: Registry) {
     const pond = pondGlobal.__koiPondState
-    if (pond) pond.surfacedElement = surfaced(reg)
+    if (pond) {
+        pond.surfacedElement = surfaced(reg)
+        pond.pointedElement = reg.pointed
+    }
     reg.listeners.forEach((listener) => listener())
 }
 
