@@ -1242,12 +1242,191 @@ function visiblePoses(frame: Frame, school: Koi[]) {
   return school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY))
 }
 
+// ---- painted koi sprites ----
+// Lauren's painted koi, straightened head-to-tail, are bent along each koi's spine in strips.
+// `centre` is where the spine runs across the image, as a share of its height.
+type SpriteSource = { src: string; centre: number }
+
+const KOI_SPRITES: Record<KoiVariety, SpriteSource> = {
+  kohaku: { src: "https://framerusercontent.com/images/IBaR2tyql8OsYFKQQ8tS8481JU.png", centre: 0.494 },
+  orange: { src: "https://framerusercontent.com/images/3XAQolVm0htgQWdgXJ3eAaIkeU.png", centre: 0.517 },
+  hiOrange: { src: "https://framerusercontent.com/images/3XAQolVm0htgQWdgXJ3eAaIkeU.png", centre: 0.517 },
+  gold: { src: "https://framerusercontent.com/images/UsRwKg1JYyQ2awGQ7grOvHVc14c.png", centre: 0.46 },
+}
+
+const SPRITE_STRIPS = 32
+const SHADOW_OFFSET = { x: 10, y: 20 }
+
+type KoiSprite = {
+  image: HTMLImageElement
+  silhouette: HTMLCanvasElement | null
+  centre: number
+  ready: boolean
+}
+
+const spriteGlobal = globalThis as unknown as {
+  __koiSprites?: Record<string, KoiSprite>
+  __koiSpriteListeners?: Set<() => void>
+}
+
+// A flat shadow-coloured copy of the koi, used to paint its shadow on the pond floor.
+function makeSilhouette(image: HTMLImageElement) {
+  const tint = document.createElement("canvas")
+  tint.width = image.naturalWidth
+  tint.height = image.naturalHeight
+  const tintCtx = tint.getContext("2d")
+  if (!tintCtx) return null
+  tintCtx.drawImage(image, 0, 0)
+  tintCtx.globalCompositeOperation = "source-in"
+  tintCtx.fillStyle = "rgb(70, 95, 80)"
+  tintCtx.fillRect(0, 0, tint.width, tint.height)
+  return tint
+}
+
+// Starts loading every sprite once per page and calls `onReady` as each one arrives.
+function loadKoiSprites(onReady: () => void) {
+  const listeners = (spriteGlobal.__koiSpriteListeners ??= new Set())
+  listeners.add(onReady)
+  const sprites = (spriteGlobal.__koiSprites ??= {})
+  for (const { src, centre } of Object.values(KOI_SPRITES)) {
+    if (sprites[src]) continue
+    const image = new Image()
+    image.decoding = "async"
+    const sprite: KoiSprite = { image, silhouette: null, centre, ready: false }
+    image.onload = () => {
+      sprite.silhouette = makeSilhouette(image)
+      sprite.ready = true
+      listeners.forEach((listener) => listener())
+    }
+    image.src = src
+    sprites[src] = sprite
+  }
+  return () => listeners.delete(onReady)
+}
+
+function readySprite(pose: KoiPose) {
+  const sprite = spriteGlobal.__koiSprites?.[KOI_SPRITES[pose.pattern.variety].src]
+  return sprite?.ready ? sprite : null
+}
+
+// Lays `source` along the spine: each strip of the image is turned to follow the body there.
+function drawAlongSpine(
+  ctx: Context,
+  pose: KoiPose,
+  source: CanvasImageSource,
+  imageWidth: number,
+  imageHeight: number,
+  centre: number,
+  offset: Point
+) {
+  const spine = pose.spine
+  const lengths = [0]
+  for (let index = 1; index < spine.length; index++) {
+    lengths.push(lengths[index - 1] + Math.hypot(spine[index].x - spine[index - 1].x, spine[index].y - spine[index - 1].y))
+  }
+  const total = lengths[lengths.length - 1]
+  if (total <= 0) return
+  const angles = spine.map((_, index) => {
+    const before = spine[Math.max(0, index - 1)]
+    const after = spine[Math.min(spine.length - 1, index + 1)]
+    return Math.atan2(after.y - before.y, after.x - before.x)
+  })
+  const at = (distance: number) => {
+    let index = 1
+    while (index < lengths.length - 1 && lengths[index] < distance) index++
+    const t = (distance - lengths[index - 1]) / Math.max(1e-6, lengths[index] - lengths[index - 1])
+    const from = spine[index - 1]
+    const to = spine[index]
+    const turn = wrapAngle(angles[index] - angles[index - 1])
+    return {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+      angle: angles[index - 1] + turn * t,
+    }
+  }
+
+  const perPixel = total / imageWidth
+  const stripLength = total / SPRITE_STRIPS
+  const overlap = Math.max(1, stripLength * 0.35)
+  const top = -centre * imageHeight * perPixel
+  const drawnHeight = imageHeight * perPixel
+  for (let strip = 0; strip < SPRITE_STRIPS; strip++) {
+    const start = strip * stripLength
+    const middle = at(start + stripLength / 2)
+    const from = Math.max(0, start - overlap)
+    const to = Math.min(total, start + stripLength + overlap)
+    ctx.save()
+    ctx.translate(middle.x + offset.x, middle.y + offset.y)
+    ctx.rotate(middle.angle)
+    ctx.drawImage(
+      source,
+      from / perPixel,
+      0,
+      (to - from) / perPixel,
+      imageHeight,
+      from - (start + stripLength / 2),
+      top,
+      to - from,
+      drawnHeight
+    )
+    ctx.restore()
+  }
+}
+
+// Shadows are gathered on one small canvas and softened together, so the strips never show.
+const SHADOW_RESOLUTION = 0.5
+const shadowGlobal = globalThis as unknown as { __koiShadowLayer?: HTMLCanvasElement }
+
+function drawKoiShadows(ctx: Context, frame: Frame, poses: KoiPose[], alpha: number) {
+  const layer = (shadowGlobal.__koiShadowLayer ??= document.createElement("canvas"))
+  const width = Math.ceil(frame.width * SHADOW_RESOLUTION)
+  const height = Math.ceil(frame.height * SHADOW_RESOLUTION)
+  if (layer.width !== width || layer.height !== height) {
+    layer.width = width
+    layer.height = height
+  }
+  const layerCtx = layer.getContext("2d")
+  if (!layerCtx) return
+  layerCtx.setTransform(1, 0, 0, 1, 0, 0)
+  layerCtx.clearRect(0, 0, width, height)
+  layerCtx.setTransform(SHADOW_RESOLUTION, 0, 0, SHADOW_RESOLUTION, 0, 0)
+  let drewAny = false
+  for (const pose of poses) {
+    const sprite = readySprite(pose)
+    if (!sprite?.silhouette) continue
+    drawAlongSpine(layerCtx, pose, sprite.silhouette, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, {
+      x: SHADOW_OFFSET.x * pose.scale,
+      y: SHADOW_OFFSET.y * pose.scale,
+    })
+    drewAny = true
+  }
+  if (!drewAny) return
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.filter = "blur(7px)"
+  ctx.drawImage(layer, 0, 0, frame.width, frame.height)
+  ctx.restore()
+}
+
+// Draws the school as Lauren's painted koi. A koi whose painting is still loading is drawn by hand.
+function drawSpriteSchool(ctx: Context, frame: Frame, poses: KoiPose[], shadowAlpha: number) {
+  if (shadowAlpha > 0) drawKoiShadows(ctx, frame, poses, shadowAlpha)
+  for (const pose of poses) {
+    const sprite = readySprite(pose)
+    if (!sprite) {
+      drawPaintedKoi(ctx, pose, frame.palette)
+      continue
+    }
+    drawAlongSpine(ctx, pose, sprite.image, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, { x: 0, y: 0 })
+  }
+}
+
 // Drawn on the Water layer, beneath the page, so the koi swim under the artwork.
 function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
   ctx.save()
   ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds))
   drawRipples(ctx, frame, nowMilliseconds)
-  visiblePoses(frame, school).forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette))
+  drawSpriteSchool(ctx, frame, visiblePoses(frame, school), 0.45)
   drawWaterLight(ctx, frame)
   ctx.restore()
 }
@@ -1257,7 +1436,7 @@ function drawAirLayer(ctx: Context, frame: Frame, school: Koi[]) {
   ctx.clearRect(0, 0, frame.width, frame.height)
   ctx.save()
   ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds))
-  visiblePoses(frame, school).forEach((pose) => drawInkKoi(ctx, pose, frame.palette))
+  drawSpriteSchool(ctx, frame, visiblePoses(frame, school), 0.25)
   ctx.restore()
 }
 
@@ -1390,6 +1569,7 @@ function startEngine(animate: boolean): Engine {
   }
   window.addEventListener("resize", onResize)
   frameId = requestAnimationFrame(render)
+  const stopSprites = loadKoiSprites(() => redraw())
 
   return {
     canvases,
@@ -1397,6 +1577,7 @@ function startEngine(animate: boolean): Engine {
     redraw,
     stop: () => {
       cancelAnimationFrame(frameId)
+      stopSprites()
       window.removeEventListener("pointermove", onMove)
       window.removeEventListener("pointerdown", onDown)
       window.removeEventListener("resize", onResize)
