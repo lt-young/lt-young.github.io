@@ -1431,12 +1431,13 @@ function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilli
   ctx.restore()
 }
 
-// Drawn on the Surface layer, above the page: only the ink koi in the air around the clock.
+// Drawn on the Surface layer, above the page: the koi are ink outlines in the air around the clock,
+// and become Lauren's painted koi as they cross into the water.
 function drawAirLayer(ctx: Context, frame: Frame, school: Koi[]) {
   ctx.clearRect(0, 0, frame.width, frame.height)
   ctx.save()
   ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds))
-  drawSpriteSchool(ctx, frame, visiblePoses(frame, school), 0.25)
+  visiblePoses(frame, school).forEach((pose) => drawInkKoi(ctx, pose, frame.palette))
   ctx.restore()
 }
 
