@@ -1,4 +1,5 @@
 // Koi pond: the animated pond, clock dial and koi behind Lauren Young's portfolio.
+// Palette: soft paper and mint wash with ink-blue lines (from Lauren's Pinterest board).
 // Ported from github.com/lt-young/lt-young.github.io (src/pond). Two instances share one
 // simulation: "Water" (night sky, pond, koi, ripples, light on the water) sits behind the
 // page so the koi swim under the artwork; "Surface" (the ink koi leaping around the clock) sits above it.
@@ -25,19 +26,19 @@ type PondPalette = {
 }
 
 const PALETTE: PondPalette = {
-  night: "#04081a",
-  chalk: "#ece5d7",
-  pond: "#0c1733",
-  pondDeep: "#050a19",
-  foam: "#ece5d7",
+  night: "#eef0e6",
+  chalk: "#2b3a8f",
+  pond: "#e4ece4",
+  pondDeep: "#d6e4dc",
+  foam: "#2b3a8f",
   koiRed: "#d9381e",
   koiOrange: "#ec6a1c",
   koiGold: "#f0a12a",
   koiGlow: "#f6c35a",
   koiCream: "#f6f1e7",
-  koiShade: "#9cc8c4",
-  shimmer: "#bfe9e6",
-  leaf: "#6cbf8c",
+  koiShade: "#b8c9bf",
+  shimmer: "#ffffff",
+  leaf: "#9fb47e",
 }
 
 // ---- pondState ----
@@ -678,7 +679,7 @@ function drawInkKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
 
 function drawShadow(ctx: Context, pose: KoiPose, body: Path2D, fins: Fin[]) {
   ctx.save();
-  ctx.shadowColor = "rgba(1, 4, 14, 0.55)";
+  ctx.shadowColor = "rgba(70, 95, 80, 0.28)";
   ctx.shadowBlur = 18 * pose.scale;
   ctx.shadowOffsetX = 10 * pose.scale;
   ctx.shadowOffsetY = 20 * pose.scale;
@@ -807,7 +808,7 @@ function drawPaintedKoi(ctx: Context, pose: KoiPose, palette: PondPalette) {
   ctx.lineWidth = 0.9 * pose.scale;
   barbels(pose).forEach((barbel) => ctx.stroke(smoothPath(barbel)));
   ctx.globalAlpha = 1;
-  drawEyes(ctx, pose, palette.pondDeep, palette.koiCream);
+  drawEyes(ctx, pose, "#1c2440", palette.koiCream);
   ctx.restore();
 }
 
@@ -1166,13 +1167,12 @@ function drawSwirls(ctx: Context, frame: Frame, tiles: number[]) {
 
 function drawShafts(ctx: Context, frame: Frame) {
   ctx.save();
-  ctx.globalCompositeOperation = "screen";
   for (let index = 0; index < 3; index++) {
     const offset = ((frame.seconds * (6 + index * 3) + index * 520) % (frame.width + 800)) - 400;
     const shaft = ctx.createLinearGradient(offset, 0, offset + 220 + index * 60, frame.height * 0.25);
-    shaft.addColorStop(0, "rgba(191, 233, 230, 0)");
-    shaft.addColorStop(0.5, `rgba(191, 233, 230, ${0.035 + index * 0.01})`);
-    shaft.addColorStop(1, "rgba(191, 233, 230, 0)");
+    shaft.addColorStop(0, "rgba(255, 255, 255, 0)");
+    shaft.addColorStop(0.5, `rgba(255, 255, 255, ${0.16 + index * 0.02})`);
+    shaft.addColorStop(1, "rgba(255, 255, 255, 0)");
     ctx.fillStyle = shaft;
     ctx.globalAlpha = 1;
     ctx.fillRect(0, 0, frame.width, frame.height);
