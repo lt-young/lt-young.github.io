@@ -1477,6 +1477,53 @@ function drawSpriteSchool(ctx: Context, frame: Frame, poses: KoiPose[], shadowAl
   }
 }
 
+// ---- lily pads ----
+// Lauren's painted lily pads float in the empty water beside each work, over the koi
+// and under the art. One pad sits in the wider gap next to each piece.
+const LILY_PAD_TEXTURE = "https://framerusercontent.com/images/m43M35Qu7Mb8phAe9bL1AN9CIrc.png"
+const LILY_PAD_MIN = 110
+const LILY_PAD_MAX = 280
+
+const surfacingGlobal = globalThis as unknown as { __koiSurfacing?: { elements: Set<HTMLElement> } }
+
+function drawLilyPads(ctx: Context, frame: Frame) {
+  const texture = textureGlobal.__koiTextures?.[LILY_PAD_TEXTURE]
+  const works = surfacingGlobal.__koiSurfacing?.elements
+  if (!texture?.ready || !works) return
+  const image = texture.image
+  const aspect = image.naturalHeight / image.naturalWidth
+  const placed = [...works]
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .sort((a, b) => a.top - b.top)
+  placed.forEach((rect, index) => {
+    if (rect.bottom < -LILY_PAD_MAX || rect.top > frame.height + LILY_PAD_MAX) return
+    const leftGap = rect.left
+    const rightGap = frame.width - rect.right
+    const gap = Math.max(leftGap, rightGap)
+    const width = Math.min(LILY_PAD_MAX, gap * 0.72, rect.height * 0.9)
+    if (width < LILY_PAD_MIN) return
+    const onLeft = leftGap > rightGap
+    const centreX = onLeft ? leftGap / 2 : rect.right + rightGap / 2
+    // Vary each pad's height, turn and mirror so the repeats don't read as copies.
+    const along = [0.3, 0.7, 0.45, 0.8, 0.2][index % 5]
+    const centreY = rect.top + rect.height * along
+    const sway = Math.sin(frame.seconds * 0.35 + index * 1.7)
+    const angle = index * 2.4 + sway * 0.04
+    const drift = sway * 3
+    ctx.save()
+    ctx.translate(centreX + drift, centreY)
+    ctx.rotate(angle)
+    if (index % 2 === 1) ctx.scale(-1, 1)
+    ctx.shadowColor = "rgba(40, 70, 60, 0.25)"
+    ctx.shadowBlur = 14
+    ctx.shadowOffsetX = 6
+    ctx.shadowOffsetY = 10
+    ctx.drawImage(image, -width / 2, (-width * aspect) / 2, width, width * aspect)
+    ctx.restore()
+  })
+}
+
 // Drawn on the Water layer, beneath the page, so the koi swim under the artwork.
 function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
   ctx.save()
@@ -1484,6 +1531,7 @@ function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilli
   drawRipples(ctx, frame, nowMilliseconds)
   drawSpriteSchool(ctx, frame, visiblePoses(frame, school), 0.45)
   drawWaterLight(ctx, frame)
+  drawLilyPads(ctx, frame)
   ctx.restore()
 }
 
@@ -1628,6 +1676,7 @@ function startEngine(animate: boolean): Engine {
   const stopSprites = loadKoiSprites(() => redraw())
   loadTexture(PAPER_TEXTURE, () => redraw())
   loadTexture(WASH_TEXTURE, () => redraw())
+  loadTexture(LILY_PAD_TEXTURE, () => redraw())
 
   return {
     canvases,
