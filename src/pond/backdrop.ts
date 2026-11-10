@@ -73,7 +73,7 @@ function drawWater(ctx: Context, frame: Frame) {
   ctx.restore();
 }
 
-function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
+export function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
   const pattern = ctx.createPattern(grain, "repeat");
   if (!pattern) return;
   ctx.save();
@@ -84,10 +84,9 @@ function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
   ctx.restore();
 }
 
-export function drawBackdrop(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
+export function drawBackdrop(ctx: Context, frame: Frame) {
   ctx.fillStyle = frame.palette.night;
   ctx.fillRect(0, 0, frame.width, frame.height);
   drawDialTicks(ctx, frame);
   drawWater(ctx, frame);
-  drawGrain(ctx, frame, grain);
 }

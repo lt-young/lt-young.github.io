@@ -21,9 +21,12 @@ const WIDTH_PROFILE: [t: number, share: number][] = [
 
 const STIFF_FRONT_BEND = 0.035;
 const FLEXIBLE_TAIL_BEND = 0.2;
-const TIGHTEST_TURN_IN_BODY_LENGTHS = 0.4;
-const TAIL_AMPLITUDE_IN_BODY_LENGTHS = 0.07;
-const WAVES_PER_BODY = 1;
+const TIGHTEST_TURN_IN_BODY_LENGTHS = 0.75;
+const TAIL_AMPLITUDE_IN_BODY_LENGTHS = 0.095;
+const WAVES_PER_BODY = 1.15;
+// How far (radians) a cruising koi swings either side of its course, and how often, for a lazy S-shaped path.
+const WEAVE_SWING = 0.55;
+const WEAVE_PER_SECOND = 0.16;
 
 export type KoiPose = {
   spine: Point[];
@@ -86,6 +89,7 @@ export class Koi {
   private speed = 0;
   private phase: number;
   private beatClock: number;
+  private weaveClock: number;
   private readonly pattern: KoiPattern;
   readonly sizeFactor: number;
   scale: number;
@@ -97,6 +101,7 @@ export class Koi {
     this.heading = seed * 2.4;
     this.phase = seed * 1.7;
     this.beatClock = seed * 3.1;
+    this.weaveClock = seed * 5.3;
     this.spine = Array.from({ length: SEGMENT_COUNT }, (_, index) => ({
       x: start.x - Math.cos(this.heading) * index * SEGMENT_LENGTH * this.scale,
       y: start.y - Math.sin(this.heading) * index * SEGMENT_LENGTH * this.scale,
@@ -117,22 +122,24 @@ export class Koi {
 
   private maxTurnRate() {
     const tightestRadius = this.bodyLength * TIGHTEST_TURN_IN_BODY_LENGTHS;
-    return Math.min(2.2, Math.max(0.5, this.speed / tightestRadius));
+    return Math.min(1.4, Math.max(0.4, this.speed / tightestRadius));
   }
 
-  swimToward(target: Point, desiredSpeed: number, deltaSeconds: number) {
-    const desiredHeading = Math.atan2(target.y - this.head.y, target.x - this.head.x);
+  swimToward(target: Point, desiredSpeed: number, deltaSeconds: number, weave = 0) {
+    this.weaveClock += deltaSeconds;
+    const swing = Math.sin(this.weaveClock * WEAVE_PER_SECOND * Math.PI * 2) * WEAVE_SWING * weave;
+    const desiredHeading = Math.atan2(target.y - this.head.y, target.x - this.head.x) + swing;
     const turn = wrapAngle(desiredHeading - this.heading);
     const turnLimit = this.maxTurnRate() * deltaSeconds;
     this.heading += Math.max(-turnLimit, Math.min(turnLimit, turn));
 
     const sharpness = Math.min(1, Math.abs(turn) / Math.PI);
     const cruisingSpeed = desiredSpeed * (1 - 0.45 * sharpness);
-    this.speed += (cruisingSpeed - this.speed) * Math.min(1, deltaSeconds * 1.2);
+    this.speed += (cruisingSpeed - this.speed) * Math.min(1, deltaSeconds * 0.7);
     this.head.x += Math.cos(this.heading) * this.speed * deltaSeconds;
     this.head.y += Math.sin(this.heading) * this.speed * deltaSeconds;
 
-    const tailBeatsPerSecond = 0.7 + (this.speed / this.bodyLength) * 1.6;
+    const tailBeatsPerSecond = 0.55 + (this.speed / this.bodyLength) * 1.2;
     this.phase += deltaSeconds * tailBeatsPerSecond * Math.PI * 2;
     this.beatClock += deltaSeconds;
     this.followHead();

@@ -35,19 +35,25 @@ function isOnScreen(koi: Koi, frame: Frame) {
   return head > -reach && head < frame.height + reach;
 }
 
-export function drawSurfaceLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
-  ctx.clearRect(0, 0, frame.width, frame.height);
-  const poses = school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY));
+function visiblePoses(frame: Frame, school: Koi[]) {
+  return school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY));
+}
 
+// Drawn on the backdrop canvas, beneath the page content, so koi glide under the work.
+export function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
   ctx.save();
   ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
   drawRipples(ctx, frame, nowMilliseconds);
-  poses.forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette));
+  visiblePoses(frame, school).forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette));
   drawWaterLight(ctx, frame);
   ctx.restore();
+}
 
+// Drawn above the page content: only the ink koi that leap into the air around the clock.
+export function drawAirLayer(ctx: Context, frame: Frame, school: Koi[]) {
+  ctx.clearRect(0, 0, frame.width, frame.height);
   ctx.save();
   ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds));
-  poses.forEach((pose) => drawInkKoi(ctx, pose, frame.palette));
+  visiblePoses(frame, school).forEach((pose) => drawInkKoi(ctx, pose, frame.palette));
   ctx.restore();
 }

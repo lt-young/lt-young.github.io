@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
-import { createGrain, drawBackdrop, type Frame } from "./backdrop";
+import { createGrain, drawBackdrop, drawGrain, type Frame } from "./backdrop";
 import { dialFor } from "./dial";
 import { readPalette, type PondPalette } from "./palette";
 import { addRipple, pondState } from "./pondState";
 import { School } from "./school";
 import { surfaceDocumentY, isUnderwater } from "./water";
-import { drawSurfaceLayer } from "./surfaceLayer";
+import { drawAirLayer, drawUnderwaterLayer } from "./surfaceLayer";
 
 const RIPPLE_SPACING = 70;
 const LURE_SECONDS = 2.2;
@@ -116,8 +116,12 @@ export function Pond() {
           scrollDelta,
         );
       }
-      if (backdrop) drawBackdrop(backdrop, frame, grain);
-      if (surface) drawSurfaceLayer(surface, frame, school.all, now);
+      if (backdrop) {
+        drawBackdrop(backdrop, frame);
+        drawUnderwaterLayer(backdrop, frame, school.all, now);
+        drawGrain(backdrop, frame, grain);
+      }
+      if (surface) drawAirLayer(surface, frame, school.all);
       frameId = requestAnimationFrame(render);
     };
 

@@ -52,11 +52,11 @@ export class School {
   swim(world: Surroundings, deltaSeconds: number, scrollDelta: number) {
     this.carryWithCurrent(world, scrollDelta);
     const keeperGoal = timekeeperGoal(world, this.timekeeper, this.all);
-    this.timekeeper.swimToward(keeperGoal.target, keeperGoal.speed, deltaSeconds);
+    this.timekeeper.swimToward(keeperGoal.target, keeperGoal.speed, deltaSeconds, hasLeftTheDial(world) ? 1 : 0);
     this.pondKoi.forEach((koi, personality) => {
       this.keepNearView(koi, world);
       const goal = pondKoiGoal(world, koi, personality, this.all);
-      koi.swimToward(goal.target, goal.speed, deltaSeconds);
+      koi.swimToward(goal.target, goal.speed, deltaSeconds, 1);
     });
     this.all.forEach((koi) => this.splashWhenCrossingSurface(koi, world));
   }

@@ -69,7 +69,7 @@ function circlingGoal(world: Surroundings, swimmer: Swimmer): Goal | null {
   const element = pondState.surfacedElement;
   if (!element) return null;
   const rect = element.getBoundingClientRect();
-  const angle = world.seconds * 0.22;
+  const angle = world.seconds * 0.16;
   const visibleTop = Math.max(rect.top, 0);
   const visibleBottom = Math.min(rect.bottom, world.viewportHeight);
   const halfHeight = Math.max(0, (visibleBottom - visibleTop) / 2);
@@ -77,7 +77,7 @@ function circlingGoal(world: Surroundings, swimmer: Swimmer): Goal | null {
     x: rect.left + rect.width / 2 + Math.cos(angle) * (rect.width / 2 + 36 * swimmer.scale),
     y: world.scrollY + visibleTop + halfHeight + Math.sin(angle) * (halfHeight + 24 * swimmer.scale),
   };
-  return { target, speed: 80 * swimmer.scale };
+  return { target, speed: 62 * swimmer.scale };
 }
 
 const MAX_CURRENT_LEAD = 0.35;
@@ -88,20 +88,23 @@ function currentLead(world: Surroundings) {
   return Math.max(-limit, Math.min(limit, lead));
 }
 
+// A slow figure-eight drift across the whole width of the page: wide, sweeping S-curves
+// rather than darting about. Each koi runs the same loop at its own pace and offset.
 function wanderGoal(world: Surroundings, swimmer: Swimmer, personality: number): Goal {
-  const time = world.seconds + personality * 17;
+  const time = world.seconds + personality * 23;
+  const pace = 0.06 + personality * 0.012;
   const lowestAllowed = surfaceDocumentY(world.viewportHeight) + 90 * swimmer.scale;
   const target = {
-    x: world.viewportWidth * (0.5 + 0.38 * Math.sin(time * (0.09 + personality * 0.025))),
+    x: world.viewportWidth * (0.5 + 0.42 * Math.sin(time * pace)),
     y: Math.max(
       lowestAllowed,
       world.scrollY +
         currentLead(world) +
-        world.viewportHeight * (0.5 + 0.3 * Math.sin(time * (0.15 + personality * 0.03) + personality)),
+        world.viewportHeight * (0.5 + 0.22 * Math.sin(time * pace * 2 + personality)),
     ),
   };
-  const drift = Math.min(260, Math.abs(world.scrollVelocity) * 0.35);
-  return { target, speed: (45 + personality * 8) * swimmer.scale + drift };
+  const drift = Math.min(220, Math.abs(world.scrollVelocity) * 0.3);
+  return { target, speed: (34 + personality * 6) * swimmer.scale + drift };
 }
 
 function keepApart(goal: Goal, swimmer: Swimmer, school: Swimmer[]): Goal {
