@@ -1,7 +1,7 @@
 // Koi pond: the animated pond, clock dial and koi behind Lauren Young's portfolio.
 // Ported from github.com/lt-young/lt-young.github.io (src/pond). Two instances share one
-// simulation: "Water" (night sky, pond, grain) sits behind the page, "Surface" (koi,
-// ripples, light on the water) sits above it, exactly like the original site.
+// simulation: "Water" (night sky, pond, koi, ripples, light on the water) sits behind the
+// page so the koi swim under the artwork; "Surface" (the ink koi leaping around the clock) sits above it.
 import * as React from "react"
 import { useEffect, useRef } from "react"
 import { addPropertyControls, ControlType, RenderTarget } from "framer"
@@ -1104,12 +1104,11 @@ function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
   ctx.restore();
 }
 
-function drawBackdrop(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
+function drawBackdrop(ctx: Context, frame: Frame) {
   ctx.fillStyle = frame.palette.night;
   ctx.fillRect(0, 0, frame.width, frame.height);
   drawDialTicks(ctx, frame);
   drawWater(ctx, frame);
-  drawGrain(ctx, frame, grain);
 }
 
 // ---- waterLight ----
@@ -1234,21 +1233,27 @@ function isOnScreen(koi: Koi, frame: Frame) {
   return head > -reach && head < frame.height + reach;
 }
 
-function drawSurfaceLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
-  ctx.clearRect(0, 0, frame.width, frame.height);
-  const poses = school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY));
+function visiblePoses(frame: Frame, school: Koi[]) {
+  return school.filter((koi) => isOnScreen(koi, frame)).map((koi) => koi.pose(frame.scrollY))
+}
 
-  ctx.save();
-  ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
-  drawRipples(ctx, frame, nowMilliseconds);
-  poses.forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette));
-  drawWaterLight(ctx, frame);
-  ctx.restore();
+// Drawn on the Water layer, beneath the page, so the koi swim under the artwork.
+function drawUnderwaterLayer(ctx: Context, frame: Frame, school: Koi[], nowMilliseconds: number) {
+  ctx.save()
+  ctx.clip(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds))
+  drawRipples(ctx, frame, nowMilliseconds)
+  visiblePoses(frame, school).forEach((pose) => drawPaintedKoi(ctx, pose, frame.palette))
+  drawWaterLight(ctx, frame)
+  ctx.restore()
+}
 
-  ctx.save();
-  ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds));
-  poses.forEach((pose) => drawInkKoi(ctx, pose, frame.palette));
-  ctx.restore();
+// Drawn on the Surface layer, above the page: only the ink koi in the air around the clock.
+function drawAirLayer(ctx: Context, frame: Frame, school: Koi[]) {
+  ctx.clearRect(0, 0, frame.width, frame.height)
+  ctx.save()
+  ctx.clip(airRegion(frame.width, frame.surfaceScreenY, frame.seconds))
+  visiblePoses(frame, school).forEach((pose) => drawInkKoi(ctx, pose, frame.palette))
+  ctx.restore()
 }
 
 
@@ -1354,12 +1359,15 @@ function startEngine(animate: boolean): Engine {
     for (const canvas of canvases.Water) {
       if (!isShown(canvas)) continue
       const ctx = fitCanvas(canvas, width, height)
-      if (ctx) drawBackdrop(ctx, frame, grain)
+      if (!ctx) continue
+      drawBackdrop(ctx, frame)
+      drawUnderwaterLayer(ctx, frame, school.all, now)
+      drawGrain(ctx, frame, grain)
     }
     for (const canvas of canvases.Surface) {
       if (!isShown(canvas)) continue
       const ctx = fitCanvas(canvas, width, height)
-      if (ctx) drawSurfaceLayer(ctx, frame, school.all, now)
+      if (ctx) drawAirLayer(ctx, frame, school.all)
     }
     if (animate) frameId = requestAnimationFrame(render)
   }
