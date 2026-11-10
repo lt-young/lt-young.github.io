@@ -1212,24 +1212,48 @@ function drawWaterLight(ctx: Context, frame: Frame) {
 // ---- surfaceLayer ----
 const RIPPLE_LIFETIME_SECONDS = 2.6;
 
+// Soft pastel hues, like light on a soap film, for the rings the pointer leaves on the water.
+const IRIDESCENT_STOPS = ["#ff9cc8", "#b49cff", "#78cfff", "#7eeec0", "#ffd97a", "#ff9cc8"];
+
+function iridescentStroke(ctx: Context, x: number, y: number, radius: number, turn: number) {
+  if (typeof ctx.createConicGradient === "function") {
+    const gradient = ctx.createConicGradient(turn, x, y);
+    IRIDESCENT_STOPS.forEach((colour, index) => gradient.addColorStop(index / (IRIDESCENT_STOPS.length - 1), colour));
+    return gradient;
+  }
+  const gradient = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+  IRIDESCENT_STOPS.forEach((colour, index) => gradient.addColorStop(index / (IRIDESCENT_STOPS.length - 1), colour));
+  return gradient;
+}
+
 function drawRipples(ctx: Context, frame: Frame, nowMilliseconds: number) {
   pondState.ripples = pondState.ripples.filter(
     (ripple) => (nowMilliseconds - ripple.bornAt) / 1000 < RIPPLE_LIFETIME_SECONDS,
   );
-  ctx.strokeStyle = frame.palette.foam;
+  ctx.save();
   for (const ripple of pondState.ripples) {
     const age = (nowMilliseconds - ripple.bornAt) / 1000;
     const fade = 1 - age / RIPPLE_LIFETIME_SECONDS;
     const radius = 6 + age * 52 * ripple.strength;
-    ctx.lineWidth = 1;
+    const x = ripple.x;
+    const y = ripple.y - frame.scrollY;
+    const strength = Math.min(1, ripple.strength);
     for (const ring of [1, 0.62]) {
-      ctx.globalAlpha = fade * fade * 0.5 * Math.min(1, ripple.strength) * ring;
+      const ringRadius = radius * ring;
       ctx.beginPath();
-      ctx.ellipse(ripple.x, ripple.y - frame.scrollY, radius * ring, radius * ring * 0.92, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, y, ringRadius, ringRadius * 0.92, 0, 0, Math.PI * 2);
+      // A colour band that slowly turns as the ring spreads, with a thin white sheen on top.
+      ctx.globalAlpha = Math.min(1, fade * 1.1) * strength * ring;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = iridescentStroke(ctx, x, y, ringRadius, ripple.bornAt / 700 + age * 1.4);
+      ctx.stroke();
+      ctx.globalAlpha = fade * 0.7 * strength * ring;
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = "#ffffff";
       ctx.stroke();
     }
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function isOnScreen(koi: Koi, frame: Frame) {
