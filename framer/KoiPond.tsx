@@ -1040,25 +1040,6 @@ type Frame = {
   palette: PondPalette;
 };
 
-const GRAIN_SIZE = 160;
-
-function createGrain(): HTMLCanvasElement {
-  const grain = document.createElement("canvas");
-  grain.width = GRAIN_SIZE;
-  grain.height = GRAIN_SIZE;
-  const ctx = grain.getContext("2d");
-  if (!ctx) return grain;
-  const image = ctx.createImageData(GRAIN_SIZE, GRAIN_SIZE);
-  for (let index = 0; index < image.data.length; index += 4) {
-    const value = Math.random() * 255;
-    image.data[index] = value;
-    image.data[index + 1] = value;
-    image.data[index + 2] = value;
-    image.data[index + 3] = Math.random() * 255;
-  }
-  ctx.putImageData(image, 0, 0);
-  return grain;
-}
 
 function drawDialTicks(ctx: Context, frame: Frame) {
   const { dial, scrollY, palette } = frame;
@@ -1099,15 +1080,65 @@ function drawWater(ctx: Context, frame: Frame) {
   ctx.restore();
 }
 
-function drawGrain(ctx: Context, frame: Frame, grain: HTMLCanvasElement) {
-  const pattern = ctx.createPattern(grain, "repeat");
-  if (!pattern) return;
-  ctx.save();
-  ctx.globalAlpha = 0.07;
-  ctx.globalCompositeOperation = "overlay";
-  ctx.fillStyle = pattern;
-  ctx.fillRect(0, 0, frame.width, frame.height);
-  ctx.restore();
+// ---- watercolour paper ----
+// Both textures tile. The paper covers the whole pond and the wash tints the water;
+// they move with the page so they feel printed on it.
+const PAPER_TEXTURE = "https://framerusercontent.com/images/a0V5UWC0uq2eD3EzfzGI8OVRLY.png"
+const WASH_TEXTURE = "https://framerusercontent.com/images/MyNgzOjzMVl4uulYZ71qz8qGUsw.png"
+const WASH_SCALE = 2
+
+const textureGlobal = globalThis as unknown as { __koiTextures?: Record<string, { image: HTMLImageElement; ready: boolean }> }
+const patternCache = new WeakMap<Context, Map<string, CanvasPattern>>()
+
+function loadTexture(src: string, onReady: () => void) {
+  const textures = (textureGlobal.__koiTextures ??= {})
+  if (textures[src]) return
+  const texture = { image: new Image(), ready: false }
+  texture.image.onload = () => {
+    texture.ready = true
+    onReady()
+  }
+  texture.image.src = src
+  textures[src] = texture
+}
+
+function texturePattern(ctx: Context, src: string) {
+  const texture = textureGlobal.__koiTextures?.[src]
+  if (!texture?.ready) return null
+  let patterns = patternCache.get(ctx)
+  if (!patterns) patternCache.set(ctx, (patterns = new Map()))
+  let pattern = patterns.get(src)
+  if (!pattern) {
+    pattern = ctx.createPattern(texture.image, "repeat") ?? undefined
+    if (!pattern) return null
+    patterns.set(src, pattern)
+  }
+  return pattern
+}
+
+// Loose blue and blue-green washes over the water, drifting very slowly.
+function drawWash(ctx: Context, frame: Frame) {
+  if (frame.surfaceScreenY > frame.height + 20) return
+  const pattern = texturePattern(ctx, WASH_TEXTURE)
+  if (!pattern) return
+  pattern.setTransform(new DOMMatrix().translate(frame.seconds * 2, -frame.scrollY).scale(WASH_SCALE))
+  ctx.save()
+  ctx.fillStyle = pattern
+  ctx.fill(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds))
+  ctx.restore()
+}
+
+// Cold-press paper tooth and fibres laid over everything, koi included.
+function drawPaper(ctx: Context, frame: Frame) {
+  const pattern = texturePattern(ctx, PAPER_TEXTURE)
+  if (!pattern) return
+  pattern.setTransform(new DOMMatrix().translate(0, -frame.scrollY))
+  ctx.save()
+  ctx.globalCompositeOperation = "multiply"
+  ctx.globalAlpha = 0.85
+  ctx.fillStyle = pattern
+  ctx.fillRect(0, 0, frame.width, frame.height)
+  ctx.restore()
 }
 
 function drawBackdrop(ctx: Context, frame: Frame) {
@@ -1115,6 +1146,7 @@ function drawBackdrop(ctx: Context, frame: Frame) {
   ctx.fillRect(0, 0, frame.width, frame.height);
   drawDialTicks(ctx, frame);
   drawWater(ctx, frame);
+  drawWash(ctx, frame);
 }
 
 // ---- waterLight ----
@@ -1506,7 +1538,6 @@ function prefersReducedMotion() {
 
 function startEngine(animate: boolean): Engine {
   const canvases: Engine["canvases"] = { Water: new Set(), Surface: new Set() }
-  const grain = createGrain()
   const reducedMotion = prefersReducedMotion() || !animate
   const school = new School(window.innerWidth, window.innerHeight)
   let previous = performance.now()
@@ -1571,7 +1602,7 @@ function startEngine(animate: boolean): Engine {
       if (!ctx) continue
       drawBackdrop(ctx, frame)
       drawUnderwaterLayer(ctx, frame, school.all, now)
-      drawGrain(ctx, frame, grain)
+      drawPaper(ctx, frame)
     }
     for (const canvas of canvases.Surface) {
       if (!isShown(canvas)) continue
@@ -1595,6 +1626,8 @@ function startEngine(animate: boolean): Engine {
   window.addEventListener("resize", onResize)
   frameId = requestAnimationFrame(render)
   const stopSprites = loadKoiSprites(() => redraw())
+  loadTexture(PAPER_TEXTURE, () => redraw())
+  loadTexture(WASH_TEXTURE, () => redraw())
 
   return {
     canvases,
