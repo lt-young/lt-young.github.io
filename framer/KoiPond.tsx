@@ -1064,13 +1064,124 @@ function drawDialTicks(ctx: Context, frame: Frame) {
   ctx.restore();
 }
 
+// ---- watercolour paper ----
+// Lauren's watercolour paper and loose blue washes. They are baked once into two small tiles
+// (paper on its own for the air, paper over the wash for the water) so each frame fills the
+// background with a single pattern instead of blending whole-screen layers.
+const PAPER_TEXTURE = "https://framerusercontent.com/images/a0V5UWC0uq2eD3EzfzGI8OVRLY.png"
+const WASH_TEXTURE = "https://framerusercontent.com/images/MyNgzOjzMVl4uulYZ71qz8qGUsw.png"
+const WASH_SCALE = 2
+const PAPER_STRENGTH = 0.85
+
+type Texture = { image: HTMLImageElement; ready: boolean }
+const textureGlobal = globalThis as unknown as {
+  __koiTextures?: Record<string, Texture>
+  __koiPaperTiles?: { air: HTMLCanvasElement; water: HTMLCanvasElement }
+}
+const patternCache = new WeakMap<Context, Map<string, CanvasPattern>>()
+
+function loadTexture(src: string, onReady: () => void) {
+  const textures = (textureGlobal.__koiTextures ??= {})
+  if (textures[src]) return
+  const texture: Texture = { image: new Image(), ready: false }
+  texture.image.decoding = "async"
+  texture.image.onload = () => {
+    texture.ready = true
+    onReady()
+  }
+  texture.image.src = src
+  textures[src] = texture
+}
+
+function readyTexture(src: string) {
+  const texture = textureGlobal.__koiTextures?.[src]
+  return texture?.ready ? texture.image : null
+}
+
+function cachedPattern(ctx: Context, key: string, source: CanvasImageSource) {
+  let patterns = patternCache.get(ctx)
+  if (!patterns) patternCache.set(ctx, (patterns = new Map()))
+  let pattern = patterns.get(key)
+  if (!pattern) {
+    pattern = ctx.createPattern(source, "repeat") ?? undefined
+    if (!pattern) return null
+    patterns.set(key, pattern)
+  }
+  return pattern
+}
+
+function multiplyPaper(ctx: CanvasRenderingContext2D, width: number, height: number, paper: HTMLImageElement) {
+  const pattern = ctx.createPattern(paper, "repeat")
+  if (!pattern) return
+  ctx.save()
+  ctx.globalCompositeOperation = "multiply"
+  ctx.globalAlpha = PAPER_STRENGTH
+  ctx.fillStyle = pattern
+  ctx.fillRect(0, 0, width, height)
+  ctx.restore()
+}
+
+function paperTiles() {
+  if (textureGlobal.__koiPaperTiles) return textureGlobal.__koiPaperTiles
+  const paper = readyTexture(PAPER_TEXTURE)
+  const wash = readyTexture(WASH_TEXTURE)
+  if (!paper || !wash) return null
+  const air = document.createElement("canvas")
+  air.width = paper.naturalWidth
+  air.height = paper.naturalHeight
+  const airCtx = air.getContext("2d")
+  const water = document.createElement("canvas")
+  water.width = wash.naturalWidth * WASH_SCALE
+  water.height = wash.naturalHeight * WASH_SCALE
+  const waterCtx = water.getContext("2d")
+  if (!airCtx || !waterCtx) return null
+  airCtx.fillStyle = PALETTE.night
+  airCtx.fillRect(0, 0, air.width, air.height)
+  multiplyPaper(airCtx, air.width, air.height, paper)
+  waterCtx.fillStyle = PALETTE.pond
+  waterCtx.fillRect(0, 0, water.width, water.height)
+  waterCtx.drawImage(wash, 0, 0, water.width, water.height)
+  multiplyPaper(waterCtx, water.width, water.height, paper)
+  return (textureGlobal.__koiPaperTiles = { air, water })
+}
+
+// A copy of a painting with the paper's tooth printed into it, so the koi and pads sit on the paper too.
+function onPaper(image: HTMLImageElement) {
+  const paper = readyTexture(PAPER_TEXTURE)
+  if (!paper) return null
+  const copy = document.createElement("canvas")
+  copy.width = image.naturalWidth
+  copy.height = image.naturalHeight
+  const copyCtx = copy.getContext("2d")
+  if (!copyCtx) return null
+  copyCtx.drawImage(image, 0, 0)
+  multiplyPaper(copyCtx, copy.width, copy.height, paper)
+  copyCtx.globalCompositeOperation = "destination-in"
+  copyCtx.drawImage(image, 0, 0)
+  return copy
+}
+
 function drawWater(ctx: Context, frame: Frame) {
   if (frame.surfaceScreenY > frame.height + 20) return;
-  const depth = ctx.createLinearGradient(0, frame.surfaceScreenY, 0, frame.surfaceScreenY + frame.height * 1.4);
-  depth.addColorStop(0, frame.palette.pond);
-  depth.addColorStop(1, frame.palette.pondDeep);
-  ctx.fillStyle = depth;
-  ctx.fill(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds));
+  const region = waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds);
+  const tiles = paperTiles();
+  const pattern = tiles && cachedPattern(ctx, "water", tiles.water);
+  if (pattern) {
+    pattern.setTransform(new DOMMatrix().translate(0, -frame.scrollY));
+    ctx.fillStyle = pattern;
+    ctx.fill(region);
+    const depth = ctx.createLinearGradient(0, frame.surfaceScreenY, 0, frame.surfaceScreenY + frame.height * 1.4);
+    depth.addColorStop(0, "rgba(214, 228, 220, 0)");
+    depth.addColorStop(1, "rgba(214, 228, 220, 0.5)");
+    ctx.fillStyle = depth;
+    ctx.fill(region);
+  } else {
+    const depth = ctx.createLinearGradient(0, frame.surfaceScreenY, 0, frame.surfaceScreenY + frame.height * 1.4);
+    depth.addColorStop(0, frame.palette.pond);
+    depth.addColorStop(1, frame.palette.pondDeep);
+    ctx.fillStyle = depth;
+    ctx.fill(region);
+  }
 
   ctx.save();
   ctx.strokeStyle = frame.palette.chalk;
@@ -1080,73 +1191,19 @@ function drawWater(ctx: Context, frame: Frame) {
   ctx.restore();
 }
 
-// ---- watercolour paper ----
-// Both textures tile. The paper covers the whole pond and the wash tints the water;
-// they move with the page so they feel printed on it.
-const PAPER_TEXTURE = "https://framerusercontent.com/images/a0V5UWC0uq2eD3EzfzGI8OVRLY.png"
-const WASH_TEXTURE = "https://framerusercontent.com/images/MyNgzOjzMVl4uulYZ71qz8qGUsw.png"
-const WASH_SCALE = 2
-
-const textureGlobal = globalThis as unknown as { __koiTextures?: Record<string, { image: HTMLImageElement; ready: boolean }> }
-const patternCache = new WeakMap<Context, Map<string, CanvasPattern>>()
-
-function loadTexture(src: string, onReady: () => void) {
-  const textures = (textureGlobal.__koiTextures ??= {})
-  if (textures[src]) return
-  const texture = { image: new Image(), ready: false }
-  texture.image.onload = () => {
-    texture.ready = true
-    onReady()
-  }
-  texture.image.src = src
-  textures[src] = texture
-}
-
-function texturePattern(ctx: Context, src: string) {
-  const texture = textureGlobal.__koiTextures?.[src]
-  if (!texture?.ready) return null
-  let patterns = patternCache.get(ctx)
-  if (!patterns) patternCache.set(ctx, (patterns = new Map()))
-  let pattern = patterns.get(src)
-  if (!pattern) {
-    pattern = ctx.createPattern(texture.image, "repeat") ?? undefined
-    if (!pattern) return null
-    patterns.set(src, pattern)
-  }
-  return pattern
-}
-
-// Loose blue and blue-green washes over the water, drifting very slowly.
-function drawWash(ctx: Context, frame: Frame) {
-  if (frame.surfaceScreenY > frame.height + 20) return
-  const pattern = texturePattern(ctx, WASH_TEXTURE)
-  if (!pattern) return
-  pattern.setTransform(new DOMMatrix().translate(frame.seconds * 2, -frame.scrollY).scale(WASH_SCALE))
-  ctx.save()
-  ctx.fillStyle = pattern
-  ctx.fill(waterRegion(frame.width, frame.height, frame.surfaceScreenY, frame.seconds))
-  ctx.restore()
-}
-
-// Cold-press paper tooth and fibres laid over everything, koi included.
-function drawPaper(ctx: Context, frame: Frame) {
-  const pattern = texturePattern(ctx, PAPER_TEXTURE)
-  if (!pattern) return
-  pattern.setTransform(new DOMMatrix().translate(0, -frame.scrollY))
-  ctx.save()
-  ctx.globalCompositeOperation = "multiply"
-  ctx.globalAlpha = 0.85
-  ctx.fillStyle = pattern
-  ctx.fillRect(0, 0, frame.width, frame.height)
-  ctx.restore()
-}
-
 function drawBackdrop(ctx: Context, frame: Frame) {
-  ctx.fillStyle = frame.palette.night;
-  ctx.fillRect(0, 0, frame.width, frame.height);
+  const tiles = paperTiles();
+  const pattern = tiles && cachedPattern(ctx, "air", tiles.air);
+  if (pattern && frame.surfaceScreenY > 0) {
+    pattern.setTransform(new DOMMatrix().translate(0, -frame.scrollY));
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, frame.width, Math.min(frame.height, frame.surfaceScreenY + 40));
+  } else if (!pattern) {
+    ctx.fillStyle = frame.palette.night;
+    ctx.fillRect(0, 0, frame.width, frame.height);
+  }
   drawDialTicks(ctx, frame);
   drawWater(ctx, frame);
-  drawWash(ctx, frame);
 }
 
 // ---- waterLight ----
@@ -1202,19 +1259,41 @@ function drawSwirls(ctx: Context, frame: Frame, tiles: number[]) {
   }
 }
 
+// The light shafts are soft gradients that drift a few pixels a second, so they are painted
+// on an eighth-size canvas a few times a second and stretched over the water.
+const SHAFT_RESOLUTION = 0.125
+const shaftGlobal = globalThis as unknown as { __koiShafts?: { canvas: HTMLCanvasElement; at: number; width: number; height: number } }
+
 function drawShafts(ctx: Context, frame: Frame) {
-  ctx.save();
-  for (let index = 0; index < 3; index++) {
-    const offset = ((frame.seconds * (6 + index * 3) + index * 520) % (frame.width + 800)) - 400;
-    const shaft = ctx.createLinearGradient(offset, 0, offset + 220 + index * 60, frame.height * 0.25);
-    shaft.addColorStop(0, "rgba(255, 255, 255, 0)");
-    shaft.addColorStop(0.5, `rgba(255, 255, 255, ${0.16 + index * 0.02})`);
-    shaft.addColorStop(1, "rgba(255, 255, 255, 0)");
-    ctx.fillStyle = shaft;
-    ctx.globalAlpha = 1;
-    ctx.fillRect(0, 0, frame.width, frame.height);
+  const cached = (shaftGlobal.__koiShafts ??= { canvas: document.createElement("canvas"), at: -Infinity, width: 0, height: 0 });
+  const stale = Math.abs(frame.seconds - cached.at) > 0.12 || cached.width !== frame.width || cached.height !== frame.height;
+  if (stale) {
+    const canvas = cached.canvas;
+    const width = Math.ceil(frame.width * SHAFT_RESOLUTION);
+    const height = Math.ceil(frame.height * SHAFT_RESOLUTION);
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    const shaftCtx = canvas.getContext("2d");
+    if (!shaftCtx) return;
+    shaftCtx.setTransform(1, 0, 0, 1, 0, 0);
+    shaftCtx.clearRect(0, 0, width, height);
+    shaftCtx.setTransform(SHAFT_RESOLUTION, 0, 0, SHAFT_RESOLUTION, 0, 0);
+    for (let index = 0; index < 3; index++) {
+      const offset = ((frame.seconds * (6 + index * 3) + index * 520) % (frame.width + 800)) - 400;
+      const shaft = shaftCtx.createLinearGradient(offset, 0, offset + 220 + index * 60, frame.height * 0.25);
+      shaft.addColorStop(0, "rgba(255, 255, 255, 0)");
+      shaft.addColorStop(0.5, `rgba(255, 255, 255, ${0.16 + index * 0.02})`);
+      shaft.addColorStop(1, "rgba(255, 255, 255, 0)");
+      shaftCtx.fillStyle = shaft;
+      shaftCtx.fillRect(0, 0, frame.width, frame.height);
+    }
+    cached.at = frame.seconds;
+    cached.width = frame.width;
+    cached.height = frame.height;
   }
-  ctx.restore();
+  ctx.drawImage(cached.canvas, 0, 0, frame.width, frame.height);
 }
 
 function drawFlecks(ctx: Context, frame: Frame, tiles: number[]) {
@@ -1310,12 +1389,13 @@ const KOI_SPRITES: Record<KoiVariety, SpriteSource> = {
   gold: { src: "https://framerusercontent.com/images/UsRwKg1JYyQ2awGQ7grOvHVc14c.png", centre: 0.46 },
 }
 
-const SPRITE_STRIPS = 32
+const SPRITE_STRIPS = 20
 const SHADOW_OFFSET = { x: 10, y: 20 }
 
 type KoiSprite = {
   image: HTMLImageElement
   silhouette: HTMLCanvasElement | null
+  papered: HTMLCanvasElement | null
   centre: number
   ready: boolean
 }
@@ -1348,7 +1428,7 @@ function loadKoiSprites(onReady: () => void) {
     if (sprites[src]) continue
     const image = new Image()
     image.decoding = "async"
-    const sprite: KoiSprite = { image, silhouette: null, centre, ready: false }
+    const sprite: KoiSprite = { image, silhouette: null, papered: null, centre, ready: false }
     image.onload = () => {
       sprite.silhouette = makeSilhouette(image)
       sprite.ready = true
@@ -1429,38 +1509,65 @@ function drawAlongSpine(
   }
 }
 
-// Shadows are gathered on one small canvas and softened together, so the strips never show.
-const SHADOW_RESOLUTION = 0.5
-const shadowGlobal = globalThis as unknown as { __koiShadowLayer?: HTMLCanvasElement }
+// Shadows are gathered on a quarter-size canvas, softened there, and stretched back up,
+// so the strips never show and the blur never touches a full-size canvas.
+const SHADOW_RESOLUTION = 0.25
+const shadowGlobal = globalThis as unknown as { __koiShadowLayers?: [HTMLCanvasElement, HTMLCanvasElement] }
+
+function sizeTo(canvas: HTMLCanvasElement, width: number, height: number) {
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width
+    canvas.height = height
+  }
+  const canvasCtx = canvas.getContext("2d")
+  canvasCtx?.setTransform(1, 0, 0, 1, 0, 0)
+  canvasCtx?.clearRect(0, 0, width, height)
+  return canvasCtx
+}
 
 function drawKoiShadows(ctx: Context, frame: Frame, poses: KoiPose[], alpha: number) {
-  const layer = (shadowGlobal.__koiShadowLayer ??= document.createElement("canvas"))
+  const [strips, soft] = (shadowGlobal.__koiShadowLayers ??= [document.createElement("canvas"), document.createElement("canvas")])
   const width = Math.ceil(frame.width * SHADOW_RESOLUTION)
   const height = Math.ceil(frame.height * SHADOW_RESOLUTION)
-  if (layer.width !== width || layer.height !== height) {
-    layer.width = width
-    layer.height = height
-  }
-  const layerCtx = layer.getContext("2d")
-  if (!layerCtx) return
-  layerCtx.setTransform(1, 0, 0, 1, 0, 0)
-  layerCtx.clearRect(0, 0, width, height)
-  layerCtx.setTransform(SHADOW_RESOLUTION, 0, 0, SHADOW_RESOLUTION, 0, 0)
+  const stripsCtx = sizeTo(strips, width, height)
+  if (!stripsCtx) return
+  stripsCtx.setTransform(SHADOW_RESOLUTION, 0, 0, SHADOW_RESOLUTION, 0, 0)
   let drewAny = false
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
   for (const pose of poses) {
     const sprite = readySprite(pose)
     if (!sprite?.silhouette) continue
-    drawAlongSpine(layerCtx, pose, sprite.silhouette, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, {
+    const reach = 90 * pose.scale
+    for (const point of pose.spine) {
+      left = Math.min(left, point.x - reach)
+      right = Math.max(right, point.x + reach)
+      top = Math.min(top, point.y - reach)
+      bottom = Math.max(bottom, point.y + reach)
+    }
+    drawAlongSpine(stripsCtx, pose, sprite.silhouette, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, {
       x: SHADOW_OFFSET.x * pose.scale,
       y: SHADOW_OFFSET.y * pose.scale,
     })
     drewAny = true
   }
   if (!drewAny) return
+  const softCtx = sizeTo(soft, width, height)
+  if (!softCtx) return
+  softCtx.filter = "blur(2px)"
+  softCtx.drawImage(strips, 0, 0)
+  softCtx.filter = "none"
   ctx.save()
   ctx.globalAlpha = alpha
-  ctx.filter = "blur(7px)"
-  ctx.drawImage(layer, 0, 0, frame.width, frame.height)
+  ctx.imageSmoothingQuality = "high"
+  // Copy back only the area around the koi, not the whole screen.
+  const x = Math.max(0, Math.floor(left * SHADOW_RESOLUTION))
+  const y = Math.max(0, Math.floor(top * SHADOW_RESOLUTION))
+  const w = Math.min(width, Math.ceil(right * SHADOW_RESOLUTION)) - x
+  const h = Math.min(height, Math.ceil(bottom * SHADOW_RESOLUTION)) - y
+  if (w > 0 && h > 0) ctx.drawImage(soft, x, y, w, h, x / SHADOW_RESOLUTION, y / SHADOW_RESOLUTION, w / SHADOW_RESOLUTION, h / SHADOW_RESOLUTION)
   ctx.restore()
 }
 
@@ -1473,7 +1580,8 @@ function drawSpriteSchool(ctx: Context, frame: Frame, poses: KoiPose[], shadowAl
       drawPaintedKoi(ctx, pose, frame.palette)
       continue
     }
-    drawAlongSpine(ctx, pose, sprite.image, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, { x: 0, y: 0 })
+    sprite.papered ??= onPaper(sprite.image)
+    drawAlongSpine(ctx, pose, sprite.papered ?? sprite.image, sprite.image.naturalWidth, sprite.image.naturalHeight, sprite.centre, { x: 0, y: 0 })
   }
 }
 
@@ -1486,40 +1594,72 @@ const LILY_PAD_MAX = 280
 
 const surfacingGlobal = globalThis as unknown as { __koiSurfacing?: { elements: Set<HTMLElement> } }
 
-function drawLilyPads(ctx: Context, frame: Frame) {
-  const texture = textureGlobal.__koiTextures?.[LILY_PAD_TEXTURE]
+// The pad's soft shadow and paper are painted once; each frame only places the finished pad.
+const PAD_SHADOW_PAD = 48
+const padGlobal = globalThis as unknown as {
+  __koiLilyPad?: HTMLCanvasElement
+  __koiLilyPadSpots?: { at: number; width: number; spots: { left: number; right: number; top: number; height: number }[] }
+}
+
+function bakedLilyPad() {
+  if (padGlobal.__koiLilyPad) return padGlobal.__koiLilyPad
+  const image = readyTexture(LILY_PAD_TEXTURE)
+  if (!image || !readyTexture(PAPER_TEXTURE)) return null
+  const painted = onPaper(image)
+  if (!painted) return null
+  const baked = document.createElement("canvas")
+  baked.width = image.naturalWidth + PAD_SHADOW_PAD * 2
+  baked.height = image.naturalHeight + PAD_SHADOW_PAD * 2
+  const bakedCtx = baked.getContext("2d")
+  if (!bakedCtx) return null
+  const scale = image.naturalWidth / LILY_PAD_MAX
+  bakedCtx.shadowColor = "rgba(40, 70, 60, 0.25)"
+  bakedCtx.shadowBlur = 14 * scale
+  bakedCtx.shadowOffsetX = 6 * scale
+  bakedCtx.shadowOffsetY = 10 * scale
+  bakedCtx.drawImage(painted, PAD_SHADOW_PAD, PAD_SHADOW_PAD)
+  return (padGlobal.__koiLilyPad = baked)
+}
+
+// Where the works are, in page coordinates. Measured twice a second rather than every frame.
+function workSpots(frame: Frame) {
+  const now = frame.seconds
+  const cached = padGlobal.__koiLilyPadSpots
+  if (cached && cached.width === frame.width && Math.abs(now - cached.at) < 0.5) return cached.spots
   const works = surfacingGlobal.__koiSurfacing?.elements
-  if (!texture?.ready || !works) return
-  const image = texture.image
-  const aspect = image.naturalHeight / image.naturalWidth
-  const placed = [...works]
+  const spots = [...(works ?? [])]
     .map((element) => element.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({ left: rect.left, right: rect.right, top: rect.top + frame.scrollY, height: rect.height }))
     .sort((a, b) => a.top - b.top)
-  placed.forEach((rect, index) => {
-    if (rect.bottom < -LILY_PAD_MAX || rect.top > frame.height + LILY_PAD_MAX) return
-    const leftGap = rect.left
-    const rightGap = frame.width - rect.right
+  padGlobal.__koiLilyPadSpots = { at: now, width: frame.width, spots }
+  return spots
+}
+
+function drawLilyPads(ctx: Context, frame: Frame) {
+  const pad = bakedLilyPad()
+  if (!pad) return
+  const padWidth = pad.width - PAD_SHADOW_PAD * 2
+  workSpots(frame).forEach((spot, index) => {
+    const top = spot.top - frame.scrollY
+    if (top + spot.height < -LILY_PAD_MAX || top > frame.height + LILY_PAD_MAX) return
+    const leftGap = spot.left
+    const rightGap = frame.width - spot.right
     const gap = Math.max(leftGap, rightGap)
-    const width = Math.min(LILY_PAD_MAX, gap * 0.72, rect.height * 0.9)
+    const width = Math.min(LILY_PAD_MAX, gap * 0.72, spot.height * 0.9)
     if (width < LILY_PAD_MIN) return
     const onLeft = leftGap > rightGap
-    const centreX = onLeft ? leftGap / 2 : rect.right + rightGap / 2
+    const centreX = onLeft ? leftGap / 2 : spot.right + rightGap / 2
     // Vary each pad's height, turn and mirror so the repeats don't read as copies.
     const along = [0.3, 0.7, 0.45, 0.8, 0.2][index % 5]
-    const centreY = rect.top + rect.height * along
+    const centreY = top + spot.height * along
     const sway = Math.sin(frame.seconds * 0.35 + index * 1.7)
-    const angle = index * 2.4 + sway * 0.04
-    const drift = sway * 3
+    const scale = width / padWidth
     ctx.save()
-    ctx.translate(centreX + drift, centreY)
-    ctx.rotate(angle)
+    ctx.translate(centreX + sway * 3, centreY)
+    ctx.rotate(index * 2.4 + sway * 0.04)
     if (index % 2 === 1) ctx.scale(-1, 1)
-    ctx.shadowColor = "rgba(40, 70, 60, 0.25)"
-    ctx.shadowBlur = 14
-    ctx.shadowOffsetX = 6
-    ctx.shadowOffsetY = 10
-    ctx.drawImage(image, -width / 2, (-width * aspect) / 2, width, width * aspect)
+    ctx.drawImage(pad, (-pad.width / 2) * scale, (-pad.height / 2) * scale, pad.width * scale, pad.height * scale)
     ctx.restore()
   })
 }
@@ -1563,15 +1703,40 @@ type Engine = {
 
 const engineGlobal = globalThis as unknown as { __koiPondEngine?: Engine }
 
-function fitCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
-  const ratio = Math.min(window.devicePixelRatio || 1, 2)
+// Like WebGL sites that hold a steady frame rate, the pond renders below the screen's full
+// resolution and steps down further if frames run long. Its painterly look hides the difference.
+const MAX_RATIO = 1.5
+const MIN_RATIO = 0.75
+const SLOW_FRAME_MS = 21
+const quality = { ratio: 1, average: 16, frames: 0 }
+
+function resetQuality() {
+  quality.ratio = Math.min(window.devicePixelRatio || 1, MAX_RATIO)
+  quality.average = 16
+  quality.frames = 0
+}
+
+function measureFrame(milliseconds: number) {
+  // Ignore pauses such as a hidden tab; they say nothing about drawing speed.
+  if (milliseconds > 120) return
+  quality.average += (milliseconds - quality.average) * 0.05
+  quality.frames++
+  if (quality.frames < 90) return
+  if (quality.average > SLOW_FRAME_MS && quality.ratio > MIN_RATIO) {
+    quality.ratio = Math.max(MIN_RATIO, quality.ratio - 0.25)
+    quality.frames = 0
+  }
+}
+
+function fitCanvas(canvas: HTMLCanvasElement, width: number, height: number, opaque: boolean) {
+  const ratio = quality.ratio
   const pixelWidth = Math.round(width * ratio)
   const pixelHeight = Math.round(height * ratio)
   if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
     canvas.width = pixelWidth
     canvas.height = pixelHeight
   }
-  const ctx = canvas.getContext("2d")
+  const ctx = canvas.getContext("2d", { alpha: !opaque })
   ctx?.setTransform(ratio, 0, 0, ratio, 0, 0)
   return ctx
 }
@@ -1588,6 +1753,8 @@ function startEngine(animate: boolean): Engine {
   const canvases: Engine["canvases"] = { Water: new Set(), Surface: new Set() }
   const reducedMotion = prefersReducedMotion() || !animate
   const school = new School(window.innerWidth, window.innerHeight)
+  const airCleared = new WeakSet<HTMLCanvasElement>()
+  resetQuality()
   let previous = performance.now()
   let previousScrollY = window.scrollY
   let scrollVelocity = 0
@@ -1609,12 +1776,16 @@ function startEngine(animate: boolean): Engine {
     addRipple(point, 1.6)
     pondState.lure = { ...point, until: performance.now() / 1000 + LURE_SECONDS }
   }
-  const onResize = () => school.resize(window.innerWidth, window.innerHeight)
+  const onResize = () => {
+    school.resize(window.innerWidth, window.innerHeight)
+    resetQuality()
+  }
 
   const render = (now: number) => {
     const width = window.innerWidth
     const height = window.innerHeight
     const deltaSeconds = Math.min(0.05, (now - previous) / 1000)
+    if (animate) measureFrame(now - previous)
     previous = now
     const scrollY = window.scrollY
     const frame: Frame = {
@@ -1646,16 +1817,21 @@ function startEngine(animate: boolean): Engine {
     }
     for (const canvas of canvases.Water) {
       if (!isShown(canvas)) continue
-      const ctx = fitCanvas(canvas, width, height)
+      const ctx = fitCanvas(canvas, width, height, true)
       if (!ctx) continue
       drawBackdrop(ctx, frame)
       drawUnderwaterLayer(ctx, frame, school.all, now)
-      drawPaper(ctx, frame)
     }
+    // Once the page scrolls past the hero there is no air left to draw in.
+    const airVisible = frame.surfaceScreenY > -40
     for (const canvas of canvases.Surface) {
       if (!isShown(canvas)) continue
-      const ctx = fitCanvas(canvas, width, height)
-      if (ctx) drawAirLayer(ctx, frame, school.all)
+      if (!airVisible && airCleared.has(canvas)) continue
+      const ctx = fitCanvas(canvas, width, height, false)
+      if (!ctx) continue
+      drawAirLayer(ctx, frame, school.all)
+      if (airVisible) airCleared.delete(canvas)
+      else airCleared.add(canvas)
     }
     if (animate) frameId = requestAnimationFrame(render)
   }
