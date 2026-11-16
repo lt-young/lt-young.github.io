@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
 @theme static {
-  --color-night: #04081a;
-  --color-chalk: #ece5d7;
-  --color-chalk-dim: #8f97ac;
-  --color-pond: #0c1733;
-  --color-pond-deep: #050a19;
-  --color-foam: #ece5d7;
-  --color-foam-dim: #9ea6ba;
-  --color-koi: #e0592a;
-  --color-koi-red: #d9381e;
-  --color-koi-orange: #ec6a1c;
-  --color-koi-gold: #f0a12a;
-  --color-koi-glow: #f6c35a;
-  --color-koi-cream: #f6f1e7;
-  --color-koi-shade: #9cc8c4;
-  --color-shimmer: #bfe9e6;
-  --color-leaf: #6cbf8c;
+  /* Palette in OKLCH so equal lightness reads as equal across hues. */
+  --color-night: oklch(14.2% 0.040 268.2);
+  --color-chalk: oklch(92.4% 0.020 84.6);
+  --color-chalk-dim: oklch(67.7% 0.032 269.0);
+  --color-pond: oklch(21.3% 0.057 265.6);
+  --color-pond-deep: oklch(14.8% 0.034 265.9);
+  --color-foam: oklch(92.4% 0.020 84.6);
+  --color-foam-dim: oklch(72.5% 0.030 268.3);
+  --color-koi: oklch(63.3% 0.179 38.4);
+  --color-koi-red: oklch(58.5% 0.201 31.9);
+  --color-koi-orange: oklch(67.3% 0.180 45.7);
+  --color-koi-gold: oklch(76.9% 0.154 71.3);
+  --color-koi-glow: oklch(84.3% 0.135 83.0);
+  --color-koi-cream: oklch(95.9% 0.014 84.6);
+  --color-koi-shade: oklch(80.0% 0.047 189.4);
+  --color-shimmer: oklch(90.4% 0.044 191.1);
+  --color-leaf: oklch(73.8% 0.111 155.5);
 
   --font-serif: "Shippori Mincho", ui-serif, Georgia, serif;
 

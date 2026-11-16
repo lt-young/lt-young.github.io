@@ -15,12 +15,12 @@ export function App() {
       <div className="relative z-10">
         <Hero />
         <main>
-          <p className="type-statement mx-auto max-w-2xl px-4 pt-[18vh] pb-[30vh] text-center sm:px-8">
+          <p className="type-statement mx-auto max-w-2xl px-4 pt-[18svh] pb-[30svh] text-center sm:px-8">
             My experimental approach to art examines the human experience of time in our rapidly unfurling digital age.
           </p>
           <WorkList onOpen={setOpenWork} />
         </main>
-        <footer className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-[40vh] pb-10 text-sm text-foam-dim sm:px-8">
+        <footer className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-[40svh] pb-10 text-sm text-foam-dim sm:px-8">
           <span>Lauren Young</span>
           <a
             href="https://www.instagram.com/1aurstudios_/"
