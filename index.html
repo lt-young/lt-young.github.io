@@ -228,10 +228,11 @@
   const pondEl = document.getElementById('pond'), stageEl = pondEl.parentElement;
   const EXT = [0, 0];   // how far the window reaches past her frame on each side, in frame px
   const frameRect = () => pondEl.getBoundingClientRect();
+  let resCap = 1.75, frameMs = 16.7, frameN = 0;                     // sharp enough on retina, and the water stays smooth; lowered below if frames run long
   function fitRes() {
     const pr = frameRect(), sr = stageEl.getBoundingClientRect(), css = pr.width || W, s = css / W;
     EXT[0] = Math.max(0, (pr.left - sr.left) / s); EXT[1] = Math.max(0, (pr.top - sr.top) / s);
-    RES = window.__res || Math.max(1, Math.min(2.5, (devicePixelRatio || 1) * s));
+    RES = window.__res || Math.max(1, Math.min(resCap, (devicePixelRatio || 1) * s));
     canvas.width = Math.round((W + 2 * EXT[0]) * RES); canvas.height = Math.round((H + 2 * EXT[1]) * RES);
     for (const el of [canvas, document.getElementById('snap')]) Object.assign(el.style, {
       left: -(pr.left - sr.left) + 'px', top: -(pr.top - sr.top) + 'px', width: sr.width + 'px', height: sr.height + 'px' });
@@ -493,7 +494,7 @@
     #else
     precision mediump float;
     #endif
-    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform float op; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
+    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform float op; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32]; uniform vec4 kbox;
     void main(){
       // one continuous pond: texture coords come from world position, mirrored past the image edge,
       // so a section's water can run on under the next one while it cross-fades
@@ -502,16 +503,19 @@
       else tu = 1.0 - abs(mod(tu, 2.0) - 1.0);      // the art pond (with its painted pads) mirrors instead
       float a = smoothstep(fade.x, fade.y, wp.y) * (1.0 - smoothstep(fade.z, fade.w, wp.y)) * smoothstep(fadex.x, fadex.y, wp.x - fadex.z * (0.6 + 0.6 * sin(wp.y * 0.0041) * 0.6 + 0.4 * sin(wp.y * 0.0113 + 1.3)));   // fadex.z wobbles the edge so a page's water never meets the next along a straight line
       a = mix(a, 1.0, own);                          // the page you're on owns the whole window: one water, edge to edge
+      if (a * op <= 0.001) discard;                   // nothing of this layer shows here: skip the work
       vec2 q = wp / 1024.0;
       vec2 d = vec2(sin(q.y*7.0 + time*0.35) + sin((q.x+q.y)*11.0 - time*0.27),
                     cos(q.x*6.0 - time*0.31) + sin((q.x-q.y)*9.0 + time*0.22)) * 0.0016;
       // the koi push the water aside as they pass, and leave a soft rippling wake behind the tail
       vec2 px = wp, w = vec2(0.0); float glow = 0.0;
+      if (px.x > kbox.x && px.x < kbox.z && px.y > kbox.y && px.y < kbox.w) {   // only near the koi and their wakes
       for (int i = 0; i < 16; i++) { vec2 r = px - body[i]; float l = length(r) + 1.0; w += r / l * 14.0 * exp(-(l * l) / 22000.0); }
       for (int i = 0; i < 32; i++) { vec3 tr = trail[i]; if (tr.z >= 0.0) { vec2 r = px - tr.xy; float l = length(r) + 1.0;
         float life = smoothstep(0.0, 0.6, tr.z) * (1.0 - smoothstep(2.6, 3.8, tr.z));
         float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
         w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
+      }
       d += w / vec2(1440.0, 1024.0);
       // past her frame the window shows only water: another page's words, photo and pads stay out of the margins (edgeK > 0 only for those), the current page's are never cut
       float o = max(max(-sp.x, sp.x - 1440.0), max(-sp.y, sp.y - 1024.0)), outK = edgeK * smoothstep(0.0, 40.0, o);
@@ -531,7 +535,7 @@
   const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
   const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
   const view = () => [camX - EXT[0] / camZ, cam - EXT[1] / camZ, camX + (1440 + EXT[0]) / camZ, cam + (1024 + EXT[1]) / camZ];
-  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), wOp = gl.getUniformLocation(wprog, 'op'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
+  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), wOp = gl.getUniformLocation(wprog, 'op'), wKbox = gl.getUniformLocation(wprog, 'kbox'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
   const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
   function texFrom(img) {
@@ -546,7 +550,11 @@
       if (k.P) for (let j = 0; j < 8; j++) { const q = k.P[Math.round(4 + j * (k.iTail - 4) / 7)]; bodyArr[(fi * 8 + j) * 2] = q[0]; bodyArr[(fi * 8 + j) * 2 + 1] = q[1]; }
       (k.trail || []).forEach((p, j) => { const o = (fi * 16 + j) * 3; trailArr[o] = p[0]; trailArr[o + 1] = p[1]; trailArr[o + 2] = time - p[2]; });
     });
-    gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;     // the box round every koi body and wake point, padded by how far a ripple reaches
+    for (let i = 0; i < bodyArr.length; i += 2) if (bodyArr[i] > -9000) { x0 = Math.min(x0, bodyArr[i]); x1 = Math.max(x1, bodyArr[i]); y0 = Math.min(y0, bodyArr[i + 1]); y1 = Math.max(y1, bodyArr[i + 1]); }
+    for (let i = 0; i < trailArr.length; i += 3) if (trailArr[i + 2] >= 0) { x0 = Math.min(x0, trailArr[i]); x1 = Math.max(x1, trailArr[i]); y0 = Math.min(y0, trailArr[i + 1]); y1 = Math.max(y1, trailArr[i + 1]); }
+    gl.useProgram(wprog); gl.uniform4f(wKbox, x0 - 1000, y0 - 1000, x1 + 1000, y1 + 1000);
+    gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
     aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [...A(119,74),991*AS,208*AS], photo: [...A(809.27,7.7),830.38*AS,1074.24*AS] };   // About, from her About 1-3 and transition frames (1728 x 1117, fitted to the frame's height): "hi, I'm Lauren" top left, her photo on the right
@@ -566,7 +574,7 @@
   const PAGE_OF = { letter: 'base', photo: 'aboutWater', aboutText: 'aboutWater', aboutLetter: 'aboutWater', aboutStep0: 'aboutWater', aboutStep1: 'aboutWater', aboutStep2: 'aboutWater', aboutStep3: 'aboutWater', worksTop: 'worksWater', artTop: 'artWater', artWater: 'artWater' };
   function drawLayer(name, mode, op) {
     if (!LAYER[name] || op === 0) return;
-    const sr = RECT[name], r = DRAW[name] || sr, vw = view(); if (r[1] > vw[3] || r[1] + r[3] < vw[1]) return;
+    const sr = RECT[name], r = DRAW[name] || sr, vw = view(); if (r[1] > vw[3] || r[1] + r[3] < vw[1] || r[0] > vw[2] || r[0] + r[2] < vw[0]) return;
     gl.useProgram(wprog); gl.uniform4fv(wU.r, r); gl.uniform4fv(wU.sr, sr); gl.uniform4fv(wU.f, FADE[name] || NOFADE); gl.uniform4fv(wU.fx, FADEX[name] || [-1e6, -9e5, 0, 0]); // the water itself is one continuous pond (no masks, so no seams); only another page's words, photo, pads and the art pond's painted pads are kept out of the margins
       gl.uniform1f(wEdge, PAGE_OF[name] && PAGE_OF[name] !== ownerShown ? ownerK : 0); gl.uniform1f(wOwn, 0);
     gl.uniform1f(wRep, name === 'artWater' ? 0 : 1); gl.uniform1f(wOp, op === undefined ? 1 : op);
@@ -899,7 +907,8 @@
       if (p > 0.995) camAnim = null;
       dirty = true;
     } else {                                         // glide after the scroll instead of jumping with each wheel step
-      const k = 1 - Math.exp(-dt * 9), cur = [camX, cam, camZ];
+      const swimming = page === 'home' && KOI.some(k => k.trans && !k.trans.guide);   // landing <-> About: the view eases along with the koi instead of racing ahead and leaving the page empty
+      const k = 1 - Math.exp(-dt * (swimming ? 3 : 9)), cur = [camX, cam, camZ];
       const nx = cur.map((v, i) => v + (tg[i] - v) * (dt ? k : 1));
       if (Math.abs(nx[1] - tg[1]) < 0.3 && Math.abs(nx[2] - tg[2]) < 1e-4) nx.splice(0, 3, ...tg); else dirty = true;
       [camX, cam, camZ] = nx;
@@ -1178,7 +1187,9 @@
   ownerShown = page === 'works' ? 'worksWater' : page === 'art' ? 'artWater' : 'base'; ownerK = 1;   // a fresh load starts settled on its page
   addEventListener('resize', () => { fitRes(); dirty = true; });
   function frame(now) {
-    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
+    const raw = last === null ? 0 : now - last, dt = Math.min(0.05, raw / 1000); last = now;
+    if (raw > 0 && raw < 120 && running) {         // frames running long (a busy laptop GPU): draw the pond at a lower resolution so motion stays smooth
+      frameMs += (raw - frameMs) * 0.05; if (++frameN > 90 && frameMs > 21 && resCap > 1) { resCap = Math.max(1, resCap - 0.25); frameN = 0; fitRes(); dirty = true; } }
     if (running || t === 0 || dirty) { dirty = false;
       t += dt; stepCam(dt); placeUI();
       { // the page you're on owns the window: its water fills every margin and later pages' water stays out of them

@@ -24,9 +24,6 @@
 html,body{background:var(--pond-deep);margin:0;color:var(--chip-ink)}
 .spacer{height:700vh}
 .stage{position:fixed;inset:0;overflow:hidden;height:100dvh}
-.world{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;will-change:transform}
-.world img{position:absolute;inset:0;width:100%;height:100%;user-select:none;transition:opacity .5s}
-.sea{position:absolute;background:url(a/water-tile.jpg?v=1) repeat}   /* her water, mirrored so it runs on seamlessly past the frame */
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 #flow{mix-blend-mode:screen;transition:opacity .4s}
 .hits{position:absolute;inset:0}
@@ -52,10 +49,10 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </head>
 <body>
 <div class="stage" id="stage">
-  <div class="world" id="bg"><div class="sea" id="sea"></div></div>
+  <canvas id="bgc" aria-hidden="true"></canvas>
   <canvas id="flow"></canvas>
   <canvas id="gl" role="img" aria-label="Two painted koi swimming the open water between the lily pads"></canvas>
-  <div class="world" id="fg"><img id="content" alt=""></div>
+  <canvas id="fgc" role="img"></canvas>
   <div class="hits" id="hits"></div>
   <div class="veil" id="veil"></div>
 </div>
@@ -70,11 +67,31 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 
-<script src="scenes.js?v=1"></script>
+<script src="scenes.js?v=2"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
-  const stage = document.getElementById('stage'), bg = document.getElementById('bg'), fg = document.getElementById('fg'), content = document.getElementById('content');
+  const stage = document.getElementById('stage'), bgc = document.getElementById('bgc'), fgc = document.getElementById('fgc');
+  const bctx = bgc.getContext('2d'), fctx = fgc.getContext('2d');
+  // her pond and pages are drawn straight onto canvases every frame: crisp at any zoom, no re-rasterising pops while the view moves.
+  // Each page image keeps a few smaller copies, so a zoomed-out view never shimmers.
+  const IMGS = {};
+  function loadImg(src) {
+    if (IMGS[src]) return IMGS[src].ready;
+    const e = IMGS[src] = { levels: null };
+    e.ready = new Promise(res => { const im = new Image(); im.decoding = 'async'; im.onload = async () => {
+      try { await im.decode(); } catch (er) {}
+      const lv = [im]; let w = im.width, h = im.height;
+      while (w > 1400) { w = Math.round(w / 2); h = Math.round(h / 2); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(lv[lv.length - 1], 0, 0, w, h); lv.push(c); }
+      e.levels = lv; res(e); }; im.onerror = () => res(e); im.src = src; });
+    return e.ready;
+  }
+  function level(e, worldW) {                     // the smallest copy that still has a pixel for every screen pixel
+    const need = worldW * cam.s * dpr; let L = e.levels[0];
+    for (const c of e.levels) if (c.width >= need) L = c;
+    return L;
+  }
+  const WATER = 'a/water-tile.jpg?v=1'; loadImg(WATER);
   const cv = document.getElementById('flow'), ctx = cv.getContext('2d'), glc = document.getElementById('gl');
   const hitsEl = document.getElementById('hits'), veil = document.getElementById('veil'), spacer = document.getElementById('spacer');
   const stillBtn = document.getElementById('still'), hint = document.getElementById('hint'), backBtn = document.getElementById('back'), soon = document.getElementById('soon');
@@ -93,7 +110,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   const cam = { x: 0, y: 0, s: 0.1 };
   function resize() {
     VW = stage.clientWidth; VH = stage.clientHeight; dpr = Math.min(2, devicePixelRatio || 1);
-    for (const c of [cv, glc]) { c.width = Math.round(VW * dpr); c.height = Math.round(VH * dpr); }
+    for (const c of [cv, glc, bgc, fgc]) { c.width = Math.round(VW * dpr); c.height = Math.round(VH * dpr); }
     sizeSpacer();
   }
   // the landing is seen whole top to bottom and glides sideways as you scroll; a case study opens on the whole frame, then zooms into its middle stream
@@ -120,8 +137,18 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   const lerpCam = (a, b, t) => ({ s: Math.exp(Math.log(a.s) + (Math.log(b.s) - Math.log(a.s)) * t), x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
   const toScreen = (x, y) => [(x - cam.x) * cam.s + VW / 2, (y - cam.y) * cam.s + VH / 2];
   function applyCam() {
-    const tf = `translate(${VW / 2 - cam.x * cam.s}px, ${VH / 2 - cam.y * cam.s}px) scale(${cam.s})`;
-    bg.style.transform = tf; fg.style.transform = tf;
+    const k = cam.s * dpr, ox = (VW / 2 - cam.x * cam.s) * dpr, oy = (VH / 2 - cam.y * cam.s) * dpr;
+    const [x0, x1, y0, y1] = [cam.x - VW / 2 / cam.s, cam.x + VW / 2 / cam.s, cam.y - VH / 2 / cam.s, cam.y + VH / 2 / cam.s];
+    bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.fillStyle = '#2f8f9c'; bctx.fillRect(0, 0, bgc.width, bgc.height);
+    const w = IMGS[WATER];
+    if (w && w.levels) {                          // her water, mirrored so it runs on seamlessly past the frame: tiles of 2x her frame
+      const tw = 2 * WW, th = 2 * WH, L = level(w, tw);
+      bctx.setTransform(k, 0, 0, k, ox, oy); bctx.imageSmoothingQuality = 'high';
+      for (let ty = Math.floor(y0 / th) * th; ty < y1; ty += th) for (let tx = Math.floor(x0 / tw) * tw; tx < x1; tx += tw) bctx.drawImage(L, tx, ty, tw + 1 / cam.s, th + 1 / cam.s);
+    }
+    fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fgc.width, fgc.height);
+    const c = IMGS[S.img];
+    if (c && c.levels) { fctx.setTransform(k, 0, 0, k, ox, oy); fctx.imageSmoothingQuality = 'high'; fctx.drawImage(level(c, WW), 0, 0, WW, WH); }
     for (const b of hitsEl.children) { const r = b._r; b.style.transform = `translate(${(r[0] - cam.x) * cam.s + VW / 2}px, ${(r[1] - cam.y) * cam.s + VH / 2}px)`; b.style.width = r[2] * cam.s + 'px'; b.style.height = r[3] * cam.s + 'px'; }
   }
 
@@ -441,22 +468,21 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   function diveTo(slug, c, r) {
     if (anim && anim.kind !== 'zoom') return;
     KOI.forEach((k, i) => { if (k.ready) { guideTo(k, c, r * 1.05 + 120, i ? -1 : 1); k.hurry = 1.6; } });
+    loadImg(SCENES[slug].img);
     anim = { kind: 'guide', t: 0, from: { ...cam }, c, r, slug };
     try { history.pushState({ id: slug }, '', '#' + slug); } catch (e) {}
   }
   function goBack() {
     if (id === 'works') { veil.style.transition = 'opacity .35s'; veil.style.opacity = 1; setTimeout(() => { location.href = '../#currently'; }, reduce ? 0 : 380); return; }
     try { history.pushState({ id: 'works' }, '', location.pathname + location.search); } catch (e) {}
-    openScene('works', id);
+    crossTo('works', id);
   }
   backBtn.addEventListener('click', goBack);
   function openScene(next, fromSlug) {
     id = next; S = SCENES[next]; WW = S.W; WH = S.H; OBS = S.obs;
     S.bow = S.bow || OBS.filter((o, i) => i < S.obs.length && (next === 'works' || (S.hits[i] && S.hits[i][0] === 'p')));
     zoomR = null; stage.classList.remove('zoomed');
-    for (const w of [bg, fg]) { w.style.width = WW + 'px'; w.style.height = WH + 'px'; }
-    Object.assign(document.getElementById('sea').style, { left: -2 * WW + 'px', top: -2 * WH + 'px', width: 5 * WW + 'px', height: 5 * WH + 'px', backgroundSize: `${2 * WW}px ${2 * WH}px` });
-    content.src = S.img; content.alt = next === 'works' ? 'Works: lily pads for each project, each labelled with its name, the kind of work and the year.' : `${S.name} case study`;
+    fgc.setAttribute('aria-label', next === 'works' ? 'Works: lily pads for each project, each labelled with its name, the kind of work and the year.' : `${S.name} case study`);
     document.title = (next === 'works' ? 'Works' : S.name) + ' · Lauren Young';
     backBtn.textContent = next === 'works' ? 'back to currently' : 'back to works';
     hint.textContent = next === 'works' ? 'scroll along the pond, then pick a pad' : 'scroll to follow the current, click any piece to see it up close';
@@ -473,11 +499,18 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 2.2 };
     veil.style.transition = reduce ? 'none' : 'opacity .7s'; veil.style.opacity = 0;
   }
-  addEventListener('popstate', () => { const h = location.hash.slice(1); const n = SCENES[h] && h !== 'works' ? h : 'works'; if (n !== id) openScene(n, id); });
+  // between pages without a dive (back, browser history): the pond dims to the pad green, the next page loads, and it opens out of its pad
+  function crossTo(next, from) {
+    if (anim && anim.kind === 'cross') return;
+    anim = { kind: 'cross' }; veil.style.transition = reduce ? 'none' : 'opacity .35s'; veil.style.opacity = 1;
+    Promise.all([loadImg(SCENES[next].img), new Promise(r => setTimeout(r, reduce ? 0 : 380))]).then(() => { anim = null; openScene(next, from); });
+  }
+  addEventListener('popstate', () => { const h = location.hash.slice(1); const n = SCENES[h] && h !== 'works' ? h : 'works'; if (n !== id) crossTo(n, id); });
 
   function stepCam(dt) {
     const tg = baseTarget();
     hint.style.opacity = tg.p > 0.02 || zoomR ? 0 : 1;
+    if (anim && anim.kind === 'cross') return;
     if (anim && anim.kind === 'open') {
       anim.t += dt; const u = easeIO(Math.min(1, anim.t / anim.dur));
       Object.assign(cam, lerpCam(anim.from, tg, u));
@@ -500,7 +533,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
         Object.assign(cam, lerpCam(anim.at, { s: Math.max(VW, VH) / (anim.r * 2 * 0.45), x: anim.c[0], y: anim.c[1] }, e));
         veil.style.transition = 'none'; veil.style.opacity = String(smooth(clamp((v - 0.55) / 0.45, 0, 1)));
         koiK = 1 - smooth(clamp((v - 0.4) / 0.6, 0, 1));
-        if (v >= 1) { const slug = anim.slug; anim = null; koiK = 1; openScene(slug, null); }
+        if (v >= 1 && !anim.wait) { const slug = anim.slug; anim.wait = true; loadImg(SCENES[slug].img).then(() => { anim = null; koiK = 1; openScene(slug, null); }); }
       }
       return;
     }
@@ -536,7 +569,9 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     requestAnimationFrame(frame);
   }
   resize();
-  { const h = location.hash.slice(1); openScene(SCENES[h] && h !== 'works' ? h : 'works', null); }
+  { const h = location.hash.slice(1), first = SCENES[h] && h !== 'works' ? h : 'works';
+    veil.style.transition = 'none'; veil.style.opacity = 1; anim = { kind: 'cross' };     // arriving from the dive on currently: start on the pad green
+    Promise.all([loadImg(SCENES[first].img), loadImg(WATER)]).then(() => { anim = null; openScene(first, null); }); }
   window.__works = () => ({ id, cam: { ...cam }, anim: anim && anim.kind, zoom: !!zoomR, heads: KOI.map(k => k.head && k.head.map(Math.round)) });
   requestAnimationFrame(frame);
 })();
