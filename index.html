@@ -470,12 +470,12 @@
   const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
   const aP = gl.getAttribLocation(prog, 'p'), aUV = gl.getAttribLocation(prog, 'uv');
   gl.uniform2f(gl.getUniformLocation(prog, 'res'), W, H);
-  { const hx = AX + 542 * AS, hy = AY + 204 * AS;
+  { const hx = AX + 809 * AS, hy = AY + 8 * AS;
     gl.uniform4f(gl.getUniformLocation(prog, 'ovr'), AX, AY, AX + 1440 * AS, AY + 1024 * AS);
-    gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 642 * AS, hy + 830 * AS);
+    gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 631 * AS, hy + 1016 * AS);
     gl.uniform2f(gl.getUniformLocation(prog, 'ovrY'), AY - 300, AY + 300);
     gl.uniform1i(gl.getUniformLocation(prog, 't'), 0); gl.uniform1i(gl.getUniformLocation(prog, 'halo'), 1); }
-  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=4'; }   // fades in with the About water, no hard edge
+  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=5'; }   // fades in with the About water, no hard edge
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
   const idx = []; for (let i = 0; i < N-1; i++) for (let j = 0; j < M-1; j++) { const a = i*M+j, b = a+1, c = a+M, d = c+1; idx.push(a,c,b, b,c,d); }
@@ -491,7 +491,7 @@
     #else
     precision mediump float;
     #endif
-    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
+    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform float op; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
     void main(){
       // one continuous pond: texture coords come from world position, mirrored past the image edge,
       // so a section's water can run on under the next one while it cross-fades
@@ -513,7 +513,7 @@
       d += w / vec2(1440.0, 1024.0);
       // past her frame the window shows only water: another page's words, photo and pads stay out of the margins (edgeK > 0 only for those), the current page's are never cut
       float o = max(max(-sp.x, sp.x - 1440.0), max(-sp.y, sp.y - 1024.0)), outK = edgeK * smoothstep(0.0, 40.0, o);
-      if (mode == 3) { gl_FragColor = texture2D(t, tu) * a * (1.0 - outK); return; }      // lettering: stays crisp and still
+      if (mode == 3) { gl_FragColor = texture2D(t, tu) * a * op * (1.0 - outK); return; }      // lettering: stays crisp and still
       vec4 c = texture2D(t, tu + d);
       if (mode == 0) {                                                     // base water + drifting light
         float l = sin(q.x*5.0 + q.y*3.0 + sin(q.y*4.0 - time*0.2)*1.6 - time*0.18);
@@ -529,7 +529,7 @@
   const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
   const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
   const view = () => [camX - EXT[0] / camZ, cam - EXT[1] / camZ, camX + (1440 + EXT[0]) / camZ, cam + (1024 + EXT[1]) / camZ];
-  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
+  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), wOp = gl.getUniformLocation(wprog, 'op'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
   const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
   function texFrom(img) {
@@ -547,7 +547,10 @@
     gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
-    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [AX,AY,1440*AS,1024*AS], photo: [...A(542,204),642*AS,830*AS] };   // About, laid out on the rule of thirds: headline sits on the top third line, her face on the right-third crossing, text ends on the lower third line
+    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [...A(119,74),991*AS,208*AS], photo: [...A(809.27,7.7),630.53*AS,1016.25*AS] };   // About, from her About 1-3 and transition frames (1728 x 1117, fitted to the frame's height): "hi, I'm Lauren" top left, her photo on the right
+  // the words that change as you scroll through About: 1, 2, 3, then "follow the current ~" (the transition)
+  const ABOUT_STEPS = [[125,424,961,172], [59,420,1096,256], [74,459,933,164], [232,470,608,100]];
+  ABOUT_STEPS.forEach((r, i) => { RECT['aboutStep' + i] = [...A(r[0], r[1]), r[2] * AS, r[3] * AS]; });
   // no edge between the sections: the Landing water runs on below its frame and the About water fades in over it
   const BLEND = 300, NOFADE = [-1e6, -1e6, 1e6, 1e6];
   RECT.pond = RECT.base;
@@ -558,13 +561,13 @@
   DRAW.artWater = [GX, AY - BLEND, GW * AS + 900, GH * AS + 900];   // starts at its own edge: a mirrored copy of her big pads used to spill under the tbd pad on currently
   const FADEX = { worksWater: [WX - BLEND, WX + BLEND, 0, 0], artWater: [GX, GX + 520, 140, 0] };   // the art pond melts in over a wide, wavy edge   // each page's water flows in sideways over the last
   const FADE = { worksWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], artWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], texture: [-1e6, -1e6, AY - BLEND, AY + BLEND], lines: [-1e6, -1e6, AY - BLEND, AY + BLEND], aboutWater: [AY - BLEND, AY + BLEND, 1e6, 1e6] };
-  const PAGE_OF = { letter: 'base', photo: 'aboutWater', aboutText: 'aboutWater', aboutLetter: 'aboutWater', worksTop: 'worksWater', artTop: 'artWater', artWater: 'artWater' };
-  function drawLayer(name, mode) {
-    if (!LAYER[name]) return;
+  const PAGE_OF = { letter: 'base', photo: 'aboutWater', aboutText: 'aboutWater', aboutLetter: 'aboutWater', aboutStep0: 'aboutWater', aboutStep1: 'aboutWater', aboutStep2: 'aboutWater', aboutStep3: 'aboutWater', worksTop: 'worksWater', artTop: 'artWater', artWater: 'artWater' };
+  function drawLayer(name, mode, op) {
+    if (!LAYER[name] || op === 0) return;
     const sr = RECT[name], r = DRAW[name] || sr, vw = view(); if (r[1] > vw[3] || r[1] + r[3] < vw[1]) return;
     gl.useProgram(wprog); gl.uniform4fv(wU.r, r); gl.uniform4fv(wU.sr, sr); gl.uniform4fv(wU.f, FADE[name] || NOFADE); gl.uniform4fv(wU.fx, FADEX[name] || [-1e6, -9e5, 0, 0]); // the water itself is one continuous pond (no masks, so no seams); only another page's words, photo, pads and the art pond's painted pads are kept out of the margins
       gl.uniform1f(wEdge, PAGE_OF[name] && PAGE_OF[name] !== ownerShown ? ownerK : 0); gl.uniform1f(wOwn, 0);
-    gl.uniform1f(wRep, name === 'artWater' ? 0 : 1);
+    gl.uniform1f(wRep, name === 'artWater' ? 0 : 1); gl.uniform1f(wOp, op === undefined ? 1 : op);
     gl.useProgram(wprog); gl.disableVertexAttribArray(aUV);
     gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(wAP); gl.vertexAttribPointer(wAP, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(wU.m, mode); gl.bindTexture(gl.TEXTURE_2D, LAYER[name]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -586,26 +589,39 @@
     }
   });
   // the same drifts on every other page, laid along that page's swim loop and sized so they look the same on screen at that page's zoom
-  { const drift = (path, bands, k, n) => bands.forEach(([f0, f1], band) => { for (let i = 0; i < n; i++) {
+  // the About drift is also the currently drift: at the transition its leaves ride the current over with the koi, a few at a time
+  { const drift = (path, bands, k, n, path2) => bands.forEach(([f0, f1], band) => { for (let i = 0; i < n; i++) {
       const u = i / (n - 1), fr = f0 + (f1 - f0) * u, side = (i % 2 ? 1 : -1) * (14 + 18 * Math.sin(u * Math.PI));
-      LEAVES.push({ path, fr, k, off: (side + Math.sin(i * 2.1 + band) * 6) * k, img: `leaf-${COLORS[(i + band * 3 + 2) % COLORS.length]}.png`,
+      LEAVES.push({ path, path2, lag: path2 ? ((i * 5 + band * 3) % 8) / 8 * 0.4 : 0, fr, k, off: (side + Math.sin(i * 2.1 + band) * 6) * k, img: `leaf-${COLORS[(i + band * 3 + 2) % COLORS.length]}.png`,
         size: (24 + ((i * 7 + band * 3) % 4) * 3) * k, tilt: Math.sin(i * 1.7 + band) * 0.45, dx: 0, dy: 0, vx: 0, vy: 0, wob: i * 1.3 + band }); } });
-    drift(ABOUT_OVAL, [[0.08, 0.25], [0.58, 0.75]], AS, 8);
-    drift(WORKS_OVAL, [[0.08, 0.25], [0.58, 0.75]], AS, 8);
+    drift(ABOUT_OVAL, [[0.08, 0.25], [0.58, 0.75]], AS, 8, WORKS_OVAL);
     drift(ART_OVAL, [[0.02, 0.12], [0.27, 0.37], [0.52, 0.62], [0.77, 0.87]], 1 / ZA, 8); }
   const leafUV = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, leafUV); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.STATIC_DRAW);
   const leafPB = gl.createBuffer(), leafPos = new Float32Array(8);
-  let leafSpin = 0;
+  let leafSpin = 0, leafCarry = 0;                 // 0: About's leaves drift round About; 1: they've ridden the current over to currently
+  function onPath(P, L) {
+    const x = (((L.fr + leafSpin / (2 * Math.PI)) % 1) + 1) % 1 * P.n, i = Math.min(P.n - 1, Math.floor(x)), g = x - i;
+    const a = P.p[i], b = P.p[i + 1], q = [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g], t = norm(sub(b, a)), nrm = [-t[1], t[0]];
+    return { p: add(q, mul(nrm, L.off)), t };
+  }
   function leafHome(L) {
-    if (L.path) { const P = L.path, x = (((L.fr + leafSpin / (2 * Math.PI)) % 1) + 1) % 1 * P.n, i = Math.min(P.n - 1, Math.floor(x)), g = x - i;
-      const a = P.p[i], b = P.p[i + 1], q = [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g], t = norm(sub(b, a)), nrm = [-t[1], t[0]];
-      return { p: add(q, mul(nrm, L.off)), a: Math.atan2(t[1], t[0]) + L.tilt }; }
+    if (L.path) { const h = onPath(L.path, L);
+      if (!L.path2 || leafCarry <= 0) return { p: h.p, a: Math.atan2(h.t[1], h.t[0]) + L.tilt };
+      const m = smooth(Math.max(0, Math.min(1, (leafCarry - L.lag) / 0.6))), h2 = onPath(L.path2, L);
+      if (m >= 1) return { p: h2.p, a: Math.atan2(h2.t[1], h2.t[0]) + L.tilt };
+      const w = Math.sin(Math.PI * m), p = add(add(h.p, mul(sub(h2.p, h.p), m)), [0, w * Math.sin(L.wob * 2.3) * 90 * L.k]);   // swept along, bobbing on the way
+      const t = add(mul(h.t, 1 - m), add(mul(h2.t, m), [w * 2, 0]));                // they turn to face downstream mid-way
+      return { p, a: Math.atan2(t[1], t[0]) + L.tilt }; }
     const f = L.phi + leafSpin, x = C[0] + RX * Math.cos(f), y = C[1] - RY * Math.sin(f);
     const t = norm([-RX * Math.sin(f), -RY * Math.cos(f)]), nrm = [-t[1], t[0]];
     return { p: add([x, y], mul(nrm, L.off)), a: Math.atan2(t[1], t[0]) + L.tilt };
   }
   function stepLeaves(dt, time) {
     leafSpin += dt * 0.012;                                     // the drifts turn with the pond, very slowly
+    { const tgt = page === 'works' || page === 'art' ? 1 : 0;     // About's leaves follow the koi over to currently (and back), just behind the view
+      if (camAnim && !camAnim.zoom) leafCarry = tgt ? Math.max(leafCarry, camAnim.p * 1.25 - 0.15) : Math.min(leafCarry, 1.15 - camAnim.p * 1.25);
+      else leafCarry += (tgt - leafCarry) * (dt ? 1 - Math.exp(-dt * 2) : 1);
+      leafCarry = Math.max(0, Math.min(1, leafCarry)); if (Math.abs(tgt - leafCarry) < 0.002) leafCarry = tgt; else dirty = true; }
     for (const L of LEAVES) {
       const h = leafHome(L); const x = h.p[0] + L.dx, y = h.p[1] + L.dy;
       let fx = -L.dx * 1.2, fy = -L.dy * 1.2;                   // ease back toward the drift
@@ -892,10 +908,38 @@
     syncUI(); dirty = true;
   }
   followBtn.addEventListener('click', () => go('works', true));
+  // ---- About in four steps, like her frames About 1, 2, 3 and the transition: each scroll past the threshold brings the next words,
+  // and the koi lead the way with the same swim they make when they set off for a new page (a planned glide that speeds up and eases off).
+  // From the transition ("follow the current ~") the next scroll is the click: the koi set off for currently and the view and leaves follow.
+  let aboutStep = 0, stepDir = 1;
+  const stepK = [1, 0, 0, 0], stepIn = [0, 0, 0, 0];
+  function setAboutStep(n, guide) {
+    n = Math.max(0, Math.min(3, n)); if (n === aboutStep) return;
+    stepDir = n > aboutStep ? 1 : -1; aboutStep = n; stepIn[n] = guide ? 0.35 : 0;   // the new words wait a beat for the koi to come through
+    if (guide && running && mode === 'about') KOI.forEach(k => {               // the koi dart on round the pond ahead of the words
+      if (k.trans || !k.tp) return; const X = 1500;
+      k.trans = { d0: k.dist, d1: k.dist + X, len: X, sc0: k.sc, sc1: k.sc, guide: true }; });
+    if (!running || !guide) stepK.forEach((_, i) => { stepK[i] = i === n ? 1 : 0; });
+    dirty = true;
+  }
+  function stepAbout(dt) {
+    let busy = false;
+    for (let i = 0; i < 4; i++) {
+      const on = i === aboutStep;
+      if (on && stepIn[i] > 0) { stepIn[i] -= dt; busy = true; continue; }
+      const g = on ? 1 : 0, k = dt ? 1 - Math.exp(-dt * (on ? 3 : 5)) : 1;
+      stepK[i] += (g - stepK[i]) * k; if (Math.abs(g - stepK[i]) < 0.004) stepK[i] = g; else busy = true;
+      const r = RECT['aboutStep' + i], off = (1 - stepK[i]) * 46 * AS * stepDir * (on ? -1 : 1);   // words drift in on the current and drift on out
+      DRAW['aboutStep' + i] = off ? [r[0] + off, r[1], r[2], r[3]] : r;
+    }
+    if (busy) dirty = true;
+  }
+  window.__about = () => [aboutStep, stepK.map(v => +v.toFixed(2)), leafCarry.toFixed(2)];
   artPad.addEventListener('click', () => go('art', true));      // the koi swim off to the right and the view follows them downstream to the art pond
   // jump anywhere: home (landing) and About are scroll spots on the first page; currently and fine art slide across
-  function navTo(spot) {
+  function navTo(spot, step) {
     if (spot === 'works' || spot === 'art') return go(spot, true);
+    if (spot === 'about') setAboutStep(step || 0, false);       // the menu opens About at its start; coming back from currently lands on the transition
     if (page !== 'home') return go('home', true, spot);
     scrollTo({ top: spot === 'landing' ? 0 : innerHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
@@ -1003,9 +1047,8 @@
     el.style.left = ((wx - camX) * k) + 'px'; el.style.top = ((wy - cam) * k) + 'px'; el.style.width = (w * k) + 'px'; el.style.height = (h * k) + 'px';
   }
   function placeUI() {
-    const P = PADS[1], pc = A(1262, 840);
-    place(followBtn, pc[0] - 165 * AS + P.dx, pc[1] - 165 * AS + P.dy, 330 * AS, 330 * AS, page === 'home' && cam > AY * 0.6);
-    followBtn.style.transform = `rotate(${P.a}rad)`;
+    const fr = RECT.aboutStep3;               // "follow the current ~" can be clicked too, once it's showing
+    place(followBtn, fr[0], fr[1], fr[2], fr[3], page === 'home' && cam > AY * 0.6 && aboutStep === 3 && stepK[3] > 0.5);
     const q = Wk(1222, 740);   // her "Fine Art" pad, bottom right on currently (Figma)
     place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
     floatPieces();
@@ -1047,6 +1090,7 @@
     home = [720 - 720 / z, p * AY, z];
     const dy = y - lastY; lastY = y;
     note.textContent = p > 0.9 ? '' : 'scroll down'; backBtn.hidden = p < 0.5;
+    if (p < 0.5 && aboutStep) setAboutStep(0, false);   // back on the landing page: About starts again from its first words
     if (dy > 0 && p > 0.03) retarget('about', running);
     else if (dy < 0 && p < 0.97) retarget('landing', running);
     else if (!running) retarget(p > 0.5 ? 'about' : 'landing', false);
@@ -1062,6 +1106,9 @@
     const spot = () => page === 'art' ? 'art' : page === 'works' ? 'works' : scrollY > innerHeight * 0.5 ? 'about' : 'landing';
     const NEXT = { landing: ['about', [0, 1]], about: ['works', [1, 0]], works: ['art', [1, 0]] };
     const PREV = { about: ['landing', [0, -1]], works: ['about', [-1, 0]], art: ['works', [-1, 0]] };
+    const nextOf = (here, d) => here !== 'about' ? (d > 0 ? NEXT : PREV)[here]        // About steps through her four frames before it lets go
+      : d > 0 ? (aboutStep < 3 ? ['step', [0, 0.4]] : NEXT.about) : (aboutStep > 0 ? ['step', [0, -0.4]] : PREV.about);
+    const take = (to, d) => to[0] === 'step' ? setAboutStep(aboutStep + Math.sign(d), true) : navTo(to[0], spot() === 'works' && to[0] === 'about' ? 3 : 0);
     const free = d => page === 'art' && openIdx < 0 && (d > 0 || scrollY > 2);   // on the art pond the scroll glides along it; only its start edge is a threshold
     function show() {
       const k = Math.min(1, Math.abs(acc) / NEED);
@@ -1079,11 +1126,11 @@
       lockUntil = 0;
       if (free(d)) { if (acc) { acc = 0; show(); } return; }
       if (e && e.cancelable) e.preventDefault();
-      const here = spot(), to = (d > 0 ? NEXT : PREV)[here];
+      const here = spot(), to = nextOf(here, d);
       if (!to) return;
       if (Math.sign(d) !== Math.sign(acc)) acc = 0;
       acc += d; pullDir = to[1]; show();
-      if (Math.abs(acc) >= NEED) { acc = 0; show(); lockUntil = now + 900; navTo(to[0]); return; }
+      if (Math.abs(acc) >= NEED) { acc = 0; show(); lockUntil = now + 900; take(to, d); return; }
       if (!raf) raf = requestAnimationFrame(relax);
     }
     window.__pull = () => [acc, lockUntil - performance.now(), spot(), !!camAnim, openIdx];
@@ -1095,7 +1142,7 @@
       if (openIdx >= 0 || camAnim || e.target.closest && e.target.closest('input, textarea')) return;
       const dn = ['ArrowDown', 'PageDown', ' '].includes(e.key), up = ['ArrowUp', 'PageUp'].includes(e.key);
       if (!dn && !up || free(dn ? 1 : -1)) return;
-      const to = (dn ? NEXT : PREV)[spot()]; if (to) { e.preventDefault(); navTo(to[0]); }
+      const to = nextOf(spot(), dn ? 1 : -1); if (to) { e.preventDefault(); take(to, dn ? 1 : -1); }
     });
   }
   addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse = [e.clientX, e.clientY]; if (page === 'art') dirty = true; } }, { passive: true });
@@ -1130,9 +1177,10 @@
       gl.useProgram(prog); koiCam(true); draw(painted); koiCam(false);
       drawLayer('texture', 1); drawLayer('lines', 2);
       drawLayer('photo', 3);                           // as in Figma: painted koi under the photo, orange koi over it
-      drawPad(t, PADS[1]);                             // her second pad sits over the photo and painted koi, under the orange
       gl.useProgram(prog); koiCam(true); draw(orange); koiCam(false);
       drawLayer('aboutText', 3);                       // all About text sits above both koi (and above her overlay)
+      stepAbout(dt);
+      for (let i = 0; i < 4; i++) drawLayer('aboutStep' + i, 3, stepK[i]);   // the words for the step you're on; the last ones swim off as the next arrive
       drawLayer('worksTop', 3); drawLayer('artTop', 3);   // the koi swim under her pads and under the artwork
     }
     if (camAnim && camAnim.snap) {                    // freeze the dive's last frame over the canvas, then swap the pond underneath
@@ -1146,7 +1194,7 @@
     requestAnimationFrame(frame);
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
-    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=5', aboutText: 'about-text.png?v=5',
+    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=7', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=1',
     worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
