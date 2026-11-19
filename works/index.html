@@ -146,6 +146,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       bctx.setTransform(k, 0, 0, k, ox, oy); bctx.imageSmoothingQuality = 'high';
       for (let ty = Math.floor(y0 / th) * th; ty < y1; ty += th) for (let tx = Math.floor(x0 / tw) * tw; tx < x1; tx += tw) bctx.drawImage(L, tx, ty, tw + 1 / cam.s, th + 1 / cam.s);
     }
+    drawLeaves();                                 // the leaves float on the water, under the koi
     fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fgc.width, fgc.height);
     const c = IMGS[S.img];
     if (c && c.levels) { fctx.setTransform(k, 0, 0, k, ox, oy); fctx.imageSmoothingQuality = 'high'; fctx.drawImage(level(c, WW), 0, 0, WW, WH); }
@@ -388,7 +389,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       if (u > 0.85) lat += -Lb * 0.05 * (1 - env) * (u - 0.85);
       P.push(add(base, mul(nrm, lat * sc)));
     }
-    k.head = hp.p;
+    k.head = hp.p; k.P = P;
     const nn = normals(P, 8);
     let iM = 0; k.s.forEach((s, i) => { if (Math.abs(s - 0.04 * Lb) < Math.abs(k.s[iM] - 0.04 * Lb)) iM = i; });
     const mouth = P[iM], wt = k.wt = (k.wt || 0) + dt;
@@ -478,6 +479,54 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     crossTo('works', id);
   }
   backBtn.addEventListener('click', goBack);
+  // ---------- leaves from her 2024 Koi Calendar, drifting in ribbons along the koi lanes, as on the rest of the site ----------
+  const LEAF = Array.from({ length: 10 }, (_, i) => { const im = new Image(); im.src = `../leaf-${i}.png`; return im; });
+  const COLORS = [8, 4, 0, 9, 5, 1, 6, 2, 7, 3];
+  let leaves = [];
+  function layLeaves() {
+    leaves = [];
+    S.lanes.forEach((lane, li) => {
+      const L = laneDense(lane), d = [0]; for (let i = 1; i < L.length; i++) d.push(d[i - 1] + len(sub(L[i], L[i - 1])));
+      const path = { L, d, P: d[d.length - 1] };
+      [0.12, 0.42, 0.72].forEach((f0, band) => { for (let i = 0; i < 8; i++) {
+        const u = i / 7, side = (i % 2 ? 1 : -1) * (40 + 55 * Math.sin(u * Math.PI));     // a ribbon: widest mid-drift, tapering at both ends
+        leaves.push({ path, u: (f0 + li * 0.15 + u * 0.07) * path.P, off: side + Math.sin(i * 2.1 + band) * 18, img: LEAF[COLORS[(i + band * 3 + li * 2) % 10]],
+          size: 62 + ((i * 7 + band * 3) % 4) * 9, tilt: Math.sin(i * 1.7 + band) * 0.45, wob: i * 1.3 + band + li, dx: 0, dy: 0, vx: 0, vy: 0, spin: 0, va: 0 }); } });
+    });
+  }
+  function laneAt(path, u) {
+    u = ((u % path.P) + path.P) % path.P; const d = path.d; let lo = 0, hi = d.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (d[m] <= u) lo = m; else hi = m; }
+    const a = path.L[lo], b = path.L[hi], f = (u - d[lo]) / Math.max(1e-6, d[hi] - d[lo]);
+    return { p: add(a, mul(sub(b, a), f)), tan: norm(sub(b, a)) };
+  }
+  function stepLeaves(dt) {
+    if (!dt) return;
+    for (const l of leaves) {
+      l.u += dt * 22;                                 // they ride the current slowly downstream
+      const h = laneAt(l.path, l.u), x = h.p[0] - h.tan[1] * l.off + l.dx, y = h.p[1] + h.tan[0] * l.off + l.dy;
+      let fx = 0, fy = 0, tq = 0;
+      for (const k of KOI) { if (!k.P) continue;
+        for (let i = 4; i < k.P.length - 8; i += 4) { const q = k.P[i], ex = x - q[0], ey = y - q[1], dd = Math.hypot(ex, ey);
+          if (dd < 260) { const f = 1 - dd / 260; fx += ex / (dd || 1) * 900 * f * f; fy += ey / (dd || 1) * 900 * f * f; tq += (i % 8 ? 1 : -1) * 1.2 * f; } } }
+      l.vx += (fx - l.dx * 3 - l.vx * 2) * dt; l.vy += (fy - l.dy * 3 - l.vy * 2) * dt; l.va += (tq - l.spin * 2 - l.va * 1.6) * dt;
+      l.dx += l.vx * dt; l.dy += l.vy * dt; l.spin += l.va * dt;
+      const m = Math.hypot(l.dx, l.dy); if (m > 220) { l.dx *= 220 / m; l.dy *= 220 / m; }
+    }
+  }
+  function drawLeaves() {
+    const k = cam.s * dpr, ox = (VW / 2 - cam.x * cam.s) * dpr, oy = (VH / 2 - cam.y * cam.s) * dpr, t = T;
+    for (const l of leaves) {
+      const im = l.img; if (!im.complete || !im.naturalWidth) continue;
+      const h = laneAt(l.path, l.u), x = h.p[0] - h.tan[1] * l.off + l.dx, y = h.p[1] + h.tan[0] * l.off + l.dy;
+      const sx = (x - cam.x) * cam.s + VW / 2, sy = (y - cam.y) * cam.s + VH / 2; if (sx < -60 || sx > VW + 60 || sy < -60 || sy > VH + 60) continue;
+      const a = Math.atan2(h.tan[1], h.tan[0]) + l.tilt + l.spin + Math.sin(t * 0.5 + l.wob) * 0.05;
+      const sc = l.size / Math.max(im.naturalWidth, im.naturalHeight) * (1 + Math.sin(t * 0.8 + l.wob) * 0.03);
+      const c = Math.cos(a) * sc * k, s2 = Math.sin(a) * sc * k;
+      bctx.setTransform(c, s2, -s2, c, x * k + ox, y * k + oy);
+      bctx.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight / 2);
+    }
+  }
   function openScene(next, fromSlug) {
     id = next; S = SCENES[next]; WW = S.W; WH = S.H; OBS = S.obs;
     S.bow = S.bow || OBS.filter((o, i) => i < S.obs.length && (next === 'works' || (S.hits[i] && S.hits[i][0] === 'p')));
@@ -495,7 +544,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     const startCam = { s: Math.max(VW, VH) / (d * 0.45), x: c[0], y: c[1] };
     Object.assign(cam, startCam);
     KOI.forEach(k => { k.hurry = 1; if (k.ready) startLane(k, c[0] + (k.lane ? -200 : 500)); });
-    respawnAll();
+    respawnAll(); layLeaves();
     anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 2.2 };
     veil.style.transition = reduce ? 'none' : 'opacity .7s'; veil.style.opacity = 0;
   }
@@ -564,6 +613,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     applyCam();
     drawFlow(run, dt);
     if (run) kt += dt;
+    stepLeaves(run ? dt : 0);
     for (const k of KOI) if (k.ready) pose(k, kt, run ? dt : 0);
     drawKoi();
     requestAnimationFrame(frame);
