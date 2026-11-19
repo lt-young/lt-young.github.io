@@ -547,10 +547,10 @@
     gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
-    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [...A(119,74),991*AS,208*AS], photo: [...A(809.27,7.7),630.53*AS,1016.25*AS] };   // About, from her About 1-3 and transition frames (1728 x 1117, fitted to the frame's height): "hi, I'm Lauren" top left, her photo on the right
+    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [...A(119,74),991*AS,208*AS], photo: [...A(809.27,7.7),830.38*AS,1074.24*AS] };   // About, from her About 1-3 and transition frames (1728 x 1117, fitted to the frame's height): "hi, I'm Lauren" top left, her photo on the right
   // the words that change as you scroll through About: 1, 2, 3, then "follow the current ~" (the transition)
   const ABOUT_STEPS = [[125,424,961,172], [59,420,1096,256], [74,459,933,164], [232,470,608,100]];
-  ABOUT_STEPS.forEach((r, i) => { RECT['aboutStep' + i] = [...A(r[0], r[1]), r[2] * AS, r[3] * AS]; });
+  const STEP_R = ABOUT_STEPS.map(r => [...A(r[0], r[1]), r[2] * AS, r[3] * AS]); STEP_R.forEach((r, i) => { RECT['aboutStep' + i] = r; });
   // no edge between the sections: the Landing water runs on below its frame and the About water fades in over it
   const BLEND = 300, NOFADE = [-1e6, -1e6, 1e6, 1e6];
   RECT.pond = RECT.base;
@@ -911,28 +911,28 @@
   // ---- About in four steps, like her frames About 1, 2, 3 and the transition: each scroll past the threshold brings the next words,
   // and the koi lead the way with the same swim they make when they set off for a new page (a planned glide that speeds up and eases off).
   // From the transition ("follow the current ~") the next scroll is the click: the koi set off for currently and the view and leaves follow.
-  let aboutStep = 0, stepDir = 1;
-  const stepK = [1, 0, 0, 0], stepIn = [0, 0, 0, 0];
+  let aboutStep = 0, stepDir = 1, stepPrev = -1, stepT = 9;
+  const stepK = [1, 0, 0, 0];
+  const easeIO = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   function setAboutStep(n, guide) {
     n = Math.max(0, Math.min(3, n)); if (n === aboutStep) return;
-    stepDir = n > aboutStep ? 1 : -1; aboutStep = n; stepIn[n] = guide ? 0.35 : 0;   // the new words wait a beat for the koi to come through
+    stepDir = n > aboutStep ? 1 : -1; stepPrev = aboutStep; aboutStep = n; stepT = guide && running ? 0 : 9;
     if (guide && running && mode === 'about') KOI.forEach(k => {               // the koi dart on round the pond ahead of the words
       if (k.trans || !k.tp) return; const X = 1500;
       k.trans = { d0: k.dist, d1: k.dist + X, len: X, sc0: k.sc, sc1: k.sc, guide: true }; });
-    if (!running || !guide) stepK.forEach((_, i) => { stepK[i] = i === n ? 1 : 0; });
     dirty = true;
   }
+  // the old words are swept on downstream while the new ones ride in behind them, both moving at once like one current
   function stepAbout(dt) {
-    let busy = false;
+    stepT += dt; const IN = 1.3, OUT = 1.0;
+    const ki = easeIO(Math.min(1, stepT / IN)), ko = easeIO(Math.min(1, stepT / OUT));
     for (let i = 0; i < 4; i++) {
-      const on = i === aboutStep;
-      if (on && stepIn[i] > 0) { stepIn[i] -= dt; busy = true; continue; }
-      const g = on ? 1 : 0, k = dt ? 1 - Math.exp(-dt * (on ? 3 : 5)) : 1;
-      stepK[i] += (g - stepK[i]) * k; if (Math.abs(g - stepK[i]) < 0.004) stepK[i] = g; else busy = true;
-      const r = RECT['aboutStep' + i], off = (1 - stepK[i]) * 46 * AS * stepDir * (on ? -1 : 1);   // words drift in on the current and drift on out
-      DRAW['aboutStep' + i] = off ? [r[0] + off, r[1], r[2], r[3]] : r;
+      const r = STEP_R[i]; let k = 0, off = 0;
+      if (i === aboutStep) { k = Math.min(1, ki * 1.15); off = -(1 - ki) * 300 * AS * stepDir; }
+      else if (i === stepPrev && ko < 1) { k = 1 - ko; off = ko * 340 * AS * stepDir; }
+      stepK[i] = k; RECT['aboutStep' + i] = off ? [r[0] + off, r[1] + Math.sin(Math.PI * Math.abs(off) / (340 * AS)) * 18 * AS * (i === aboutStep ? -1 : 1), r[2], r[3]] : r;
     }
-    if (busy) dirty = true;
+    if (stepT < IN) dirty = true;
   }
   window.__about = () => [aboutStep, stepK.map(v => +v.toFixed(2)), leafCarry.toFixed(2)];
   artPad.addEventListener('click', () => go('art', true));      // the koi swim off to the right and the view follows them downstream to the art pond
@@ -1176,9 +1176,9 @@
       drawLeaves(t);                                   // leaves sit under the koi
       gl.useProgram(prog); koiCam(true); draw(painted); koiCam(false);
       drawLayer('texture', 1); drawLayer('lines', 2);
-      drawLayer('photo', 3);                           // as in Figma: painted koi under the photo, orange koi over it
       gl.useProgram(prog); koiCam(true); draw(orange); koiCam(false);
-      drawLayer('aboutText', 3);                       // all About text sits above both koi (and above her overlay)
+      drawLayer('photo', 3, 1 - leafCarry);            // both koi swim behind her photo, never over her face; it leaves with the leaves at the transition
+            drawLayer('aboutText', 3);                       // all About text sits above both koi (and above her overlay)
       stepAbout(dt);
       for (let i = 0; i < 4; i++) drawLayer('aboutStep' + i, 3, stepK[i]);   // the words for the step you're on; the last ones swim off as the next arrive
       drawLayer('worksTop', 3); drawLayer('artTop', 3);   // the koi swim under her pads and under the artwork
@@ -1194,7 +1194,7 @@
     requestAnimationFrame(frame);
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
-    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=7', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=1',
+    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=1',
     worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
