@@ -1139,7 +1139,7 @@
     const NEED = 520;                               // px of scrolling (a few firm wheel notches or one long swipe)
     let acc = 0, lastT = 0, lockUntil = 0, ty = null, raf = 0, relaxT = 0;
     const spot = () => page === 'art' ? 'art' : page === 'works' ? 'works' : scrollY > innerHeight * 0.5 ? 'about' : 'landing';
-    const NEXT = { landing: ['about', [0, 1]], about: ['works', [1, 0]], works: ['art', [1, 0]] };
+    const NEXT = { landing: ['about', [0, 1]], about: ['works', [1, 0]] };          // currently is a resting place: fine art opens only from its own pad, never from a scroll
     const PREV = { about: ['landing', [0, -1]], works: ['about', [-1, 0]], art: ['works', [-1, 0]] };
     const nextOf = (here, d) => here !== 'about' ? (d > 0 ? NEXT : PREV)[here]        // About steps through her four frames before it lets go
       : d > 0 ? (aboutStep < 3 ? ['step', [0, 0.4]] : NEXT.about) : (aboutStep > 0 ? ['step', [0, -0.4]] : PREV.about);
