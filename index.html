@@ -1,17 +1,1130 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lauren Young</title>
-    <meta name="description" content="Paintings, sculpture and design by Lauren Young." />
-    <link rel="icon" href="/koi.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<title>Koi Circle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  @font-face { font-family: "Tritopani"; src: url(fonts/tritopani.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Melodrame"; src: url(fonts/melodrame.woff2) format("woff2"); font-display: swap; }
+  /* Full-bleed pond: the painted water fills the screen, the two koi circle each other. */
+  :root {
+    --pond: #0a6f80;
+    --ink: #e9fbf9;
+    --ink-soft: rgb(233 251 249 / 0.72);
+    --chip: rgb(4 60 72 / 0.55);
+    --chip-line: rgb(233 251 249 / 0.22);
+    --font-ui: "Melodrame", "Shippori Mincho", Georgia, serif;   /* her small type: relationship of mélodrame */
+    color-scheme: dark;
+  }
+  body { margin: 0; background: var(--pond); color: var(--ink); font-family: var(--font-ui); }
+  .snap { height: 100dvh; }
+  .stage { position: fixed; inset: 0; display: grid; place-items: center; background: var(--pond); }
+  .pond {
+    position: relative; width: min(100vw, calc(100dvh * 1440 / 1024)); aspect-ratio: 1440 / 1024; max-width: 100%;
+  }
+  .lettering { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; pointer-events: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Tritopani, top left; it takes you home */
+  #brand {
+    position: absolute; top: 1%; left: 1.2%; z-index: 2; display: flex; align-items: flex-start; gap: calc(7 / 1440 * 100cqw);
+    border: 0; background: none; padding: 4px 6px; border-radius: 8px; color: var(--ink);
+    font: 400 calc(76 / 1440 * 100cqw) / 1 "Tritopani", cursive; letter-spacing: 0; white-space: nowrap;
+    text-shadow: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 8px rgb(0 40 50 / 0.35);
+  }
+  #brand span { padding-top: calc(4 / 1440 * 100cqw); }
+  #brand img { width: calc(88 / 1440 * 100cqw); height: auto; filter: drop-shadow(0 2px 4px rgb(0 30 40 / 0.4)); transition: rotate 0.6s cubic-bezier(.2,.7,.2,1); }
+  #brand:hover img { rotate: -8deg; }
+  #bub { pointer-events: none; z-index: 1; }
+  #snap { pointer-events: none; will-change: transform, opacity; }
+  #snap[hidden] { display: none; }
+  .bar {
+    position: absolute; right: 2%; bottom: 2.4%; z-index: 2;
+    display: flex; gap: 8px; align-items: center;
+  }
+  button {
+    font: 500 14px/1 var(--font-ui); letter-spacing: 0.04em; color: var(--ink); background: var(--chip);
+    border: 1px solid var(--chip-line); border-radius: 999px; padding: 9px 14px; cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .note { font-size: 16px; color: var(--ink-soft); }
+  #spacer { display: none; }
+  /* three-line menu, top corner */
+  /* both live inside her frame: three bare lines top right, a small "move upstream" bottom right */
+  .menu { position: absolute; top: 2.4%; right: 2%; z-index: 2; display: flex; align-items: center; gap: 0.6cqw; }
+  #menu { width: 44px; height: 44px; padding: 0; display: grid; place-content: center; gap: 6px; border: 0; background: none; border-radius: 8px; }
+  /* three soft ripples instead of hard bars; they sway a little when you hover */
+  #menu svg { display: block; overflow: visible; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25)); }
+  #menu path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; opacity: 0.9; transition: translate 0.6s cubic-bezier(.2,.7,.2,1); }
+  #menu:hover path:nth-child(1), #menu[aria-expanded="true"] path:nth-child(1) { translate: 1.5px 0; }
+  #menu:hover path:nth-child(2), #menu[aria-expanded="true"] path:nth-child(2) { translate: -1.5px 0; }
+  #menu:hover path:nth-child(3), #menu[aria-expanded="true"] path:nth-child(3) { translate: 2px 0; }
+  /* "move upstream" is written on the water like her page titles, with a little ripple under it */
+  #back {
+    border: 0; background: none; padding: 4px 6px 12px; border-radius: 6px; position: relative;
+    font: 400 calc(40 / 1440 * 100cqw) / 1 "Tritopani", cursive; letter-spacing: 0; color: var(--ink);
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+  #back[hidden] { display: none; }
+  #back::before {
+    content: ""; display: inline-block; width: 1.15em; height: 0.6em; margin-right: 0.25em; vertical-align: 0.05em; opacity: 0.9;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 20'%3E%3Cpath d='M38 13 C 30 6, 22 17, 13 11 S 5 6, 3 9 M3 9 l5 -5 M3 9 l6 3' fill='none' stroke='%23e9fbf9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: translate 0.5s cubic-bezier(.2,.7,.2,1);
+  }
+  #back:hover::before { translate: -4px 0; }
+  #back::after {
+    display: none; content: ""; position: absolute; left: 12%; right: 8%; bottom: 2px; height: 8px; opacity: 0.75;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M1 5 C 16 1, 26 1, 40 4 S 66 8, 80 4 S 106 1, 119 3' fill='none' stroke='%23e9fbf9' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    transform-origin: 0 50%; transition: transform 0.5s cubic-bezier(.2,.7,.2,1);
+  }
+  #back:hover::after { transform: scaleX(1.12) translateX(-3%); }
+  /* the menu: a tidy column of page names in her script, each led by one small calendar leaf (drawn at or under its painted size so it stays crisp);
+     the leaf of the page you're on is the pale green one. A soft shade of deeper water sits behind the words so they read over anything. */
+  #menulist {
+    position: absolute; right: -0.6cqw; top: 46px; display: grid; justify-items: end; gap: 0.15cqw; padding: 1.2cqw 1.4cqw 1.6cqw 3.4cqw;
+    background: radial-gradient(ellipse closest-side at 58% 50%, rgb(2 40 50 / 0.5), rgb(2 40 50 / 0.28) 55%, rgb(2 40 50 / 0) 100%);
+  }
+  #menulist[hidden] { display: none; }
+  #menulist button {
+    border: 0; background: none; padding: 0.2cqw 0.3cqw; border-radius: 6px; color: var(--ink); white-space: nowrap;
+    display: flex; align-items: center; gap: 0.7cqw;
+    font: 400 calc(50 / 1440 * 100cqw) / 1.2 "Tritopani", cursive; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+    animation: drift-in 0.5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms);
+  }
+  #menulist button::before {
+    content: ""; flex: none; width: 2.1cqw; max-width: 44px; aspect-ratio: 175 / 112; order: 0;
+    background: url(leaf-0.png) center / contain no-repeat; rotate: -12deg;
+    filter: drop-shadow(0 1px 1px rgb(0 30 30 / 0.35)); transition: rotate 0.5s cubic-bezier(.2,.7,.2,1);
+  }
+  #menulist button[aria-current="page"]::before { background-image: url(leaf-6.png); }
+  #menulist button:hover::before { rotate: 4deg; }
+  #menulist #play { font: 400 calc(18 / 1440 * 100cqw) / 1.4 var(--font-ui); letter-spacing: 0.06em; color: var(--ink-soft); margin-top: 0.5cqw; }
+  #menulist #play::before { display: none; }
+  @keyframes drift-in { from { translate: 1.2cqw 0; opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { #menulist button { animation: none; } }
+  body[data-page="works"] main { display: none; }
+  body[data-page="art"] .snap { display: none; }
+  body[data-page="art"] #spacer { display: block; }
+  /* words written on a lily pad, like her pad labels; the pad itself turns a little on hover */
+  .padlink {
+    position: absolute; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink);
+    font-family: "Tritopani", cursive; font-weight: 400; letter-spacing: 0; line-height: 1.05; text-align: center;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); cursor: pointer; transform-origin: 50% 50%;
+  }
+  .padlink[hidden] { display: none; }
+  .padlink:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
+
+  /* art detail slides: her "Art / ..." frames. The tile opens into a close-up of a lily pad, like diving into it */
+  .pond { container-type: inline-size; }
+  /* the drifting pond: each piece floats loose on the water, drifts with the current and gets nudged when a koi passes under it */
+  #tiles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .tilelink {
+    position: absolute; left: 0; top: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--ink);
+    cursor: pointer; pointer-events: auto; transform-origin: 50% 50%; will-change: transform;
+  }
+  .tilelink[hidden] { display: none; }
+  .tilelink img {
+    display: block; width: 100%; height: auto; border-radius: 3px;
+    filter: drop-shadow(0 0.9cqw 1.1cqw rgb(0 34 44 / 0.42)) drop-shadow(0 0.15cqw 0.2cqw rgb(0 34 44 / 0.3));
+  }
+  .tilelink span {
+    position: absolute; left: 0; top: 100%; margin-top: 0.7cqw; white-space: nowrap;
+    font: 400 2.3em / 1.15 var(--font-ui); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  }
+  .tilelink:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+  .detail {
+    position: absolute; inset: 0; z-index: 3; overflow: hidden; color: #fff;
+    background: rgb(3 44 54 / calc(0.32 * var(--p, 0)));
+    -webkit-backdrop-filter: blur(calc(16px * var(--p, 0))); backdrop-filter: blur(calc(16px * var(--p, 0)));   /* the pond stays, softly out of focus */
+    font-family: "Crimson Text", Georgia, serif; font-size: calc(19 / 1440 * 100cqw); line-height: 1.55;   /* the reading text stays a calm upright serif */
+  }
+  .detail[hidden] { display: none; }
+  .detail h2 { position: absolute; left: calc(100 / 1440 * 100%); top: calc(52 / 1024 * 100%); margin: 0; width: 80%; }
+  .detail h2 img { position: static; display: block; height: auto; box-shadow: none; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25)); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .detail h2, .detail .info, .detail .shut { opacity: var(--p, 0); translate: 0 calc((1 - var(--p, 0)) * 1.2cqw); }
+  .detail img#dimg { transform-origin: 0 0; }
+  .detail .info { position: absolute; left: calc(120 / 1440 * 100%); width: calc(520 / 1440 * 100%); top: var(--dy); }
+  .detail dl { margin: 0 0 calc(16 / 1440 * 100cqw); font-size: calc(22 / 1440 * 100cqw); line-height: 1.4; }
+  .detail dt { display: inline; font-weight: 600; }
+  .detail dt::after { content: ": "; }
+  .detail dd { display: inline; margin: 0; }
+  .detail dd::after { content: ""; display: block; }
+  .detail h3 { margin: 0 0 calc(16 / 1440 * 100cqw); font-size: calc(22 / 1440 * 100cqw); font-weight: 600; line-height: 1.3; }
+  .detail p { margin: 0; white-space: pre-line; }
+  .detail img { position: absolute; display: block; object-fit: cover; box-shadow: 0 calc(10 / 1440 * 100cqw) calc(30 / 1440 * 100cqw) rgb(0 20 10 / 0.35); }
+  .detail .shut {
+    position: absolute; left: calc(120 / 1440 * 100%); bottom: 2.4%; border: 0; background: none; padding: 8px 4px; border-radius: 6px;
+    font: 400 calc(44 / 1440 * 100cqw) / 1 "Tritopani", cursive; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  }
+  .detail .shut::before { content: "\2190"; margin-right: 8px; font: 400 0.7em/1 var(--font-ui); vertical-align: 0.15em; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=Shippori+Mincho:wght@500&display=swap">
+
+<div class="stage">
+  <div class="pond" id="pond"><canvas id="c" width="1440" height="1024" role="img" aria-label="welcome to my Current, with two koi swimming an oval around the words. Scrolling down follows the koi into the About section: hi, I'm Lauren"></canvas>
+    <div id="tiles" aria-label="fine art pieces"></div>
+    <canvas id="bub" aria-hidden="true"></canvas>
+    <canvas id="snap" aria-hidden="true" hidden></canvas>
+    <button id="follow" class="padlink" type="button" aria-label="follow the current" hidden></button>
+    <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
+    <section class="detail" id="detail" role="dialog" aria-modal="false" aria-labelledby="dtitle" hidden>
+      <h2><img id="dtimg" alt=""><span id="dtitle" class="sr"></span></h2>
+      <div class="info"><dl id="dmeta"></dl><h3>Description:</h3><p id="ddesc"></p></div>
+      <img id="dimg" alt="">
+      <button class="shut" id="dshut" type="button">fine art</button>
+    </section>
+    <div class="bar">
+      <span class="note" id="note">scroll down</span>
+    </div>
+    <button id="brand" type="button" aria-label="Lauren Young. Home"><img src="nav-icon.png" alt=""><span>Lauren Young</span></button>
+    <nav class="menu" aria-label="Pages">
+      <button id="back" type="button" hidden>move upstream</button>
+      <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menulist"><svg viewBox="0 0 32 24" width="34" height="26" aria-hidden="true"><path d="M3 6.5 C 7 4.2, 10 4.2, 13.5 6.2 S 20.5 8.6, 24 6.4 S 28 4.6, 29.5 5.6"/><path d="M4.5 12.4 C 8.5 10.4, 11.5 10.6, 15 12.4 S 21.5 14.4, 25 12.2 S 27.8 11, 28.5 11.6"/><path d="M3.5 18.2 C 7 16.2, 10.5 16.4, 14 18.2 S 20 20.2, 23 18.4"/></svg></button>
+      <div id="menulist" hidden>
+        <button type="button" data-go="landing" style="--i:0">home</button>
+        <button type="button" data-go="about" style="--i:1">about me</button>
+        <button type="button" data-go="works" style="--i:2">currently</button>
+        <button type="button" data-go="art" style="--i:3">fine art</button>
+        <button type="button" id="play" style="--i:4">still the water</button>
+      </div>
+    </nav>
+  </div>
+</div>
+<main aria-hidden="true"><div class="snap"></div><div class="snap"></div><div id="spacer"></div></main>
+
+<script>
+(() => {
+  const W = 1440, H = 1024;
+  const canvas = document.getElementById('c');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
+  let RES = 1.5;
+  function fitRes() {
+    const css = canvas.getBoundingClientRect().width || W;
+    RES = window.__res || Math.max(1, Math.min(2.5, (devicePixelRatio || 1) * css / W));
+    canvas.width = Math.round(W * RES); canvas.height = Math.round(H * RES);
+  }
+  fitRes();
+
+  // ---- koi rigs: traced head-to-tail spine (image px), body length to the tail base, mesh half width
+  const KOI = [
+    { src: 'koi-orange.png', spine: [[712,112],[705,200],[678,285],[625,358],[552,410],[478,442],[405,462],[310,500],[210,540],[110,570]],
+      body: 513, half: 235, bodyHalf: 78, phase0: 0.0, freq: 0.68, lap0: 0, name: 'orange' },
+    { src: 'koi-painted.png', spine: [[172,505],[200,440],[250,375],[325,300],[412,244],[500,206],[560,186],[660,160],[780,138],[900,125]],
+      body: 521, half: 285, bodyHalf: 85, phase0: 1.7, freq: 0.62, lap0: 0.5, name: 'painted' }
+  ];
+  const C = [720, 512], RX = 520, RY = 345;  // shared oval, both swim counter-clockwise on screen
+  // arc-length table so the koi travel at an even pace around the oval
+  const OV = (() => { const n = 2048, d = [0], p = [];
+    for (let i = 0; i <= n; i++) { const f = 2 * Math.PI * i / n; p.push([C[0] + RX * Math.cos(f), C[1] - RY * Math.sin(f)]); if (i) d.push(d[i-1] + len(sub(p[i], p[i-1]))); }
+    return { d, p, P: d[n], n }; })();
+  function pathAt(dist) {           // position and swim direction at a distance along the oval
+    let x = ((dist % OV.P) + OV.P) % OV.P, lo = 0, hi = OV.n;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (OV.d[m] <= x) lo = m; else hi = m; }
+    const f = (x - OV.d[lo]) / (OV.d[hi] - OV.d[lo]);
+    return { p: add(OV.p[lo], mul(sub(OV.p[hi], OV.p[lo]), f)), tan: norm(sub(OV.p[hi], OV.p[lo])) };
+  }
+  const N = 56, M = 17;                     // samples along the spine, columns across
+
+  // ---- About section (world y 1024..2048): each koi swims through the spot it holds in the Figma About frame,
+  // then follows a simple loop that slips off the edge of the screen and back in.
+  const AY = 1024;
+  const Z = 0.68;                       // camera zoom in the About section: the pond pulls back, the koi stay the same size
+  const AS = 1 / Z, AX = 720 - 720 * AS; // About frame px -> world: x = AX + fx*AS, y = AY + fy*AS
+  const A = (fx, fy) => [AX + fx * AS, AY + fy * AS];
+  const POSE = {"painted": {"scale": 0.65, "spine": [[436.8, 379.7], [392.5, 392.0], [339.2, 393.3], [270.7, 386.0], [206.8, 364.8], [151.7, 335.8], [117.1, 313.6], [63.1, 273.6], [3.0, 221.9], [-52.6, 166.5]]}, "orange": {"scale": 0.7300000000000001, "spine": [[1056.1, 1031.6], [1062.1, 967.4], [1082.7, 905.7], [1122.1, 852.9], [1175.9, 815.7], [1230.3, 793.1], [1283.7, 779.3], [1353.5, 752.5], [1426.9, 724.3], [1500.2, 703.4]]}};   // head-to-tail spine in About frame px, fitted to the Figma instances
+  // Both koi share one wide, gentle loop that hugs the edges of the page and circles the words,
+  // running a little past the edges so the koi slip partly off screen and back. Rounded-rectangle shape, no tight turns.
+  const ABOUT_OVAL = (() => { const n = 2048, p = [], d = [0], cx = 720, cy = AY + 512 * AS, rx = 760 * AS, ry = 505 * AS, e = 2 / 2.6;
+    for (let i = 0; i <= n; i++) { const f = 2 * Math.PI * i / n, c = Math.cos(f), sn = Math.sin(f);
+      p.push([cx + rx * Math.sign(c) * Math.abs(c) ** e, cy - ry * Math.sign(sn) * Math.abs(sn) ** e]); if (i) d.push(d[i-1] + len(sub(p[i], p[i-1]))); }
+    return { p, d, P: d[n], n }; })();
+  // ---- the "currently" page sits to the right of About, and the fine art page to the right of that, all in one pond.
+  // Following the current slides the view sideways; each page keeps the About zoom so the koi never change size.
+  const WX = AX + 1440 * AS, GX = WX + 1440 * AS, GH = 1981, GW = 4129, ZA = Z * 1024 / GH;      // frame left edges in world px; the art page is her landscape pond (4129 x 1981), seen whole top to bottom (zoom ZA)
+  const Wk = (fx, fy) => [WX + fx * AS, AY + fy * AS], Gk = (fx, fy) => [GX + fx * AS, AY + fy * AS];
+  function superLoop(cx, cy, rx, ry, e) { const n = 2048, p = [], d = [0];
+    for (let i = 0; i <= n; i++) { const f = 2 * Math.PI * i / n, c = Math.cos(f), sn = Math.sin(f);
+      p.push([cx + rx * Math.sign(c) * Math.abs(c) ** e, cy - ry * Math.sign(sn) * Math.abs(sn) ** e]); if (i) d.push(d[i-1] + len(sub(p[i], p[i-1]))); }
+    return { p, d, P: d[n], n }; }
+  const WORKS_OVAL = superLoop(...Wk(538, 515), 600, 400, 1);   // a gentle oval around just the word "currently" (her idea), like the landing oval
+  // fine art: a long winding swim between her paintings, out along the top and back along the bottom, passing beside each piece
+  const ART_OVAL = closedLoop([[200, 760], [700, 640], [1180, 640], [1700, 800], [2300, 840], [2830, 520], [3420, 860], [3930, 1100],
+    [3860, 1720], [3200, 1600], [2780, 1320], [2080, 1620], [1560, 1780], [960, 1560], [380, 1820], [80, 1300]].map(([x, y]) => [GX + x * AS, y * AS]));
+  function closedLoop(ctrl) {          // closed Catmull-Rom through the control points, with an arc-length table
+    const n = ctrl.length, pts = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = ctrl[(i - 1 + n) % n], p1 = ctrl[i], p2 = ctrl[(i + 1) % n], p3 = ctrl[(i + 2) % n];
+      for (let k = 0; k < 40; k++) { const t = k / 40, t2 = t*t, t3 = t2*t;
+        pts.push([0,1].map(j => 0.5*((2*p1[j]) + (-p0[j]+p2[j])*t + (2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2 + (-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3) + (j ? AY : 0))); }
+    }
+    pts.push(pts[0].slice());
+    const d = [0]; for (let i = 1; i < pts.length; i++) d.push(d[i-1] + len(sub(pts[i], pts[i-1])));
+    return { p: pts, d, P: d[d.length-1], n: pts.length - 1 };
+  }
+  function loopAt(L, dist) {
+    let x = ((dist % L.P) + L.P) % L.P, lo = 0, hi = L.n;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (L.d[m] <= x) lo = m; else hi = m; }
+    const f = (x - L.d[lo]) / Math.max(1e-6, L.d[hi] - L.d[lo]);
+    return { p: add(L.p[lo], mul(sub(L.p[hi], L.p[lo]), f)), tan: norm(sub(L.p[hi], L.p[lo])) };
+  }
+  function nearestU(L, q) { let bi = 0, bd = 1e18; L.p.forEach((p, i) => { const d = (p[0]-q[0])**2 + (p[1]-q[1])**2; if (d < bd) { bd = d; bi = i; } }); return L.d[bi]; }
+
+  // ---- each koi follows a track: the path its head has swum, plus the path planned ahead.
+  // The body traces the track behind the head (follow-the-leader), so a koi can leave one loop and join another smoothly.
+  function trackPush(k, q) {
+    const n = k.tp.length;
+    if (n) { const l = len(sub(q, k.tp[n-1])); if (l < 0.5) return; k.td.push(k.td[n-1] + l); } else k.td.push(0);
+    k.tp.push(q);
+  }
+  function trackAt(k, D) {
+    const n = k.tp.length; D = Math.max(k.td[0], Math.min(k.td[n-1], D));
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (k.td[m] <= D) lo = m; else hi = m; }
+    const f = (D - k.td[lo]) / Math.max(1e-6, k.td[hi] - k.td[lo]);
+    return { p: add(k.tp[lo], mul(sub(k.tp[hi], k.tp[lo]), f)), tan: norm(sub(k.tp[hi], k.tp[lo])) };
+  }
+  function trackCut(k, D) {
+    const q = trackAt(k, D).p; let n = k.tp.length;
+    while (n > 2 && k.td[n-1] >= D) { k.tp.pop(); k.td.pop(); n--; }
+    trackPush(k, q);
+  }
+  function feed(k) {                   // keep about 1600px of planned path ahead of the head
+    const L = k.plan.loop;
+    while (k.td[k.td.length-1] - k.dist < 1600) { for (let i = 1; i <= 100; i++) trackPush(k, loopAt(L, k.plan.u + i * 4).p); k.plan.u += 400; }
+    if (k.td[0] < k.dist - 3200) { k.tp.splice(0, 400); k.td.splice(0, 400); }
+  }
+  const OVL = OV;                      // the Landing oval as a loop
+  OVL.p.forEach(q => q);
+  const LOOPS = { landing: OVL, about: ABOUT_OVAL, works: WORKS_OVAL, art: ART_OVAL };
+  KOI.forEach(k => {
+    k.aboutLoop = ABOUT_OVAL;
+    k.aboutScale = 1;                   // same size everywhere; the camera does the shrinking
+  });
+  let mode = 'landing';
+  const R_MIN = 560;                   // tightest turn a koi makes, in px: keeps the body from folding
+  function startTrack(k, L, u, sc) {   // lay a fresh track with ~2000px of history behind the head at loop distance u
+    k.tp = []; k.td = [];
+    for (let i = 0; i <= 500; i++) trackPush(k, loopAt(L, u - 2000 + i * 4).p);
+    k.dist = k.td[k.td.length-1]; k.plan = { loop: L, u }; k.sc = sc; k.scT = sc; k.trans = null; k.trail = []; feed(k);
+  }
+  // Changing sections: each koi swims one smooth, pre-planned curve onto the next loop. Join points are chosen so the
+  // curve never bends tighter than a koi can turn, and the two koi land half a loop apart (never on top of each other).
+  function bez(a, c1, c2, e, t) { const m = 1 - t; return [0,1].map(j => m*m*m*a[j] + 3*m*m*t*c1[j] + 3*m*t*t*c2[j] + t*t*t*e[j]); }
+  function planCurve(a, at, L, u, hk) {
+    const E = loopAt(L, u), gap = len(sub(E.p, a)), h = Math.max(200, gap * hk);
+    const c1 = add(a, mul(at, h)), c2 = sub(E.p, mul(E.tan, h));
+    let minR = 1e9, length = 0, prev = a, pts = [];
+    const n = 40; let p0 = a, p1 = bez(a, c1, c2, E.p, 1 / n);
+    for (let i = 1; i <= n; i++) {
+      const p2 = bez(a, c1, c2, E.p, Math.min(1, (i + 1) / n));
+      const v1 = sub(p1, p0), v2 = sub(p2, p1), l1 = len(v1), l2 = len(v2);
+      if (i < n && l1 > 1e-3 && l2 > 1e-3) { const ang = Math.abs(Math.atan2(v1[0]*v2[1] - v1[1]*v2[0], v1[0]*v2[0] + v1[1]*v2[1])); if (ang > 1e-4) minR = Math.min(minR, (l1 + l2) / 2 / ang); }
+      length += l1; pts.push(p1); p0 = p1; p1 = p2;
+    }
+    return { c1, c2, e: E.p, length, minR };
+  }
+  function curveCost(c) { return c.length + (c.minR < R_MIN ? 1e5 + (R_MIN - c.minR) * 400 : 0); }   // broad sweeps only
+  // Plan a swim that can only turn gently: simulate the koi steering toward the join point (aiming along the loop's
+  // direction there), with its turning capped at radius R. Returns the path, or null if it can't arrive well aligned.
+  const TXT = [...A(120, 330), ...A(1110, 985)];   // where her About copy sits; the swim down avoids it if it can
+  const inText = q => q[0] > TXT[0] && q[0] < TXT[2] && q[1] > TXT[1] && q[1] < TXT[3];
+  function simSwim(a, at, E, R) {
+    let p = a.slice(), h = at.slice(), pen = 0; const pts = [], ds = 6;
+    for (let n = 0; n < 1400; n++) {
+      const d = len(sub(E.p, p));
+      if (d < 18) return h[0] * E.tan[0] + h[1] * E.tan[1] > 0.88 ? { pts, length: n * ds + pen, h } : null;
+      const carrot = sub(E.p, mul(E.tan, Math.min(0.55 * d, 520)));
+      const want = norm(sub(carrot, p));
+      let da = Math.atan2(h[0] * want[1] - h[1] * want[0], h[0] * want[0] + h[1] * want[1]);
+      const lim = ds / R; da = Math.max(-lim, Math.min(lim, da));
+      const c = Math.cos(da), sn = Math.sin(da); h = [h[0] * c - h[1] * sn, h[0] * sn + h[1] * c];
+      p = add(p, mul(h, ds)); pts.push(p); if (inText(p)) pen += ds * 2.5;
+    }
+    return null;
+  }
+  function retarget(next, animate) {
+    if (next === mode) return; mode = next;
+    const L = LOOPS[next];
+    if (KOI.some(k => !k.tp || !k.tp.length)) animate = false;   // opened straight onto a page (#currently): nothing to swim from yet
+    if (!animate) { KOI.forEach(k => startTrack(k, L, next === 'landing' ? k.lap0 * OVL.P : k.lap0 * L.P, next === 'about' ? k.aboutScale : 1)); return; }
+    const st = KOI.map(k => { const D0 = k.dist + 2; const q = trackAt(k, D0); return { D0, a: q.p, at: q.tan }; });
+    let best = null;
+    for (const [R, maxL] of [[R_MIN, 3200], [R_MIN * 0.8, 3600], [R_MIN * 0.65, 4200], [R_MIN * 0.5, 6000], [R_MIN * 0.4, 9000]]) {   // widest turns first; relax only if nothing fits
+      const step = 40, n = Math.floor(L.P / step);
+      const sims = KOI.map((k, i) => Array.from({ length: n }, (_, j) => simSwim(st[i].a, st[i].at, loopAt(L, j * step), R)));
+      for (let j = 0; j < n; j++) {                     // painted at j, orange half a loop away
+        const jo = (j + Math.round(n / 2)) % n, so = sims[0][jo], sp = sims[1][j];
+        if (!so || !sp || so.length > maxL || sp.length > maxL) continue;
+        const cost = so.length + sp.length + Math.abs(so.length - sp.length) * 0.5;
+        if (!best || cost < best.cost) best = { cost, us: [jo * step, j * step], paths: [so, sp], R };
+      }
+      if (best) break;
+    }
+    window.__plans = (window.__plans || []).concat([best ? best.R + ': ' + best.paths.map(q => q.length).join(' ') : 'none']);
+    if (!best) { KOI.forEach(k => startTrack(k, L, k.lap0 * L.P, next === 'about' ? k.aboutScale : 1)); return; }
+    KOI.forEach((k, i) => {
+      const s0 = st[i];
+      trackCut(k, s0.D0);
+      const path = best.paths[i]; path.pts.forEach(q => trackPush(k, q));
+      // ease onto the loop with matching direction, so there's no kink where the swim meets the loop
+      const last = path.pts[path.pts.length - 1] || s0.a, E2 = loopAt(L, best.us[i] + 260);
+      const c1 = add(last, mul(path.h, 110)), c2 = sub(E2.p, mul(E2.tan, 110));
+      for (let j = 1; j <= 60; j++) trackPush(k, bez(last, c1, c2, E2.p, j / 60));
+      k.trans = { d0: s0.D0, d1: k.td[k.td.length-1], len: k.td[k.td.length-1] - s0.D0, sc0: k.sc, sc1: next === 'about' ? k.aboutScale : 1 };
+      k.scT = k.trans.sc1;
+      k.plan = { loop: L, u: best.us[i] + 260 }; feed(k);
+    });
+  }
+
+  // Catmull-Rom resample of a polyline into n points evenly spaced by arc length
+  function resample(pts, n, extHead, extTail) {
+    const p = pts.map(q => q.slice());
+    const h = norm(sub(p[0], p[1])), t = norm(sub(p[p.length-1], p[p.length-2]));
+    p.unshift(add(p[0], mul(h, extHead))); p.push(add(p[p.length-1], mul(t, extTail)));
+    const dense = [];
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[Math.max(0,i-1)], p1 = p[i], p2 = p[i+1], p3 = p[Math.min(p.length-1,i+2)];
+      for (let k = 0; k < 20; k++) {
+        const s = k / 20, s2 = s*s, s3 = s2*s;
+        dense.push([0,1].map(j => 0.5*((2*p1[j]) + (-p0[j]+p2[j])*s + (2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*s2 + (-p0[j]+3*p1[j]-3*p2[j]+p3[j])*s3)));
+      }
+    }
+    dense.push(p[p.length-1]);
+    const acc = [0]; for (let i = 1; i < dense.length; i++) acc.push(acc[i-1] + len(sub(dense[i], dense[i-1])));
+    const L = acc[acc.length-1], out = [];
+    for (let i = 0, j = 0; i < n; i++) {
+      const target = L * i / (n - 1);
+      while (j < dense.length - 2 && acc[j+1] < target) j++;
+      const f = (target - acc[j]) / Math.max(1e-6, acc[j+1] - acc[j]);
+      out.push([dense[j][0] + (dense[j+1][0]-dense[j][0])*f, dense[j][1] + (dense[j+1][1]-dense[j][1])*f]);
+    }
+    return { pts: out, L, offset: extHead };
+  }
+  function sub(a,b){return [a[0]-b[0],a[1]-b[1]]} function add(a,b){return [a[0]+b[0],a[1]+b[1]]}
+  function mul(a,s){return [a[0]*s,a[1]*s]} function len(a){return Math.hypot(a[0],a[1])}
+  function norm(a){const l=len(a)||1;return [a[0]/l,a[1]/l]}
+  // normals from a smoothed copy so wide fins never fold over themselves
+  function normals(pts, win) {
+    const n = pts.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - win)], b = pts[Math.min(n - 1, i + win)];
+      const t = norm(sub(b, a)); out.push([-t[1], t[0]]);
+    }
+    return out;
+  }
+
+  // ---- GL setup
+  const vs = `attribute vec2 p; attribute vec2 uv; varying vec2 v; uniform vec2 res;
+    varying vec2 wpos; uniform vec3 cam; void main(){ v = uv; wpos = p; vec2 q = (p - cam.xy) * cam.z; gl_Position = vec4(q.x/res.x*2.0-1.0, 1.0-q.y/res.y*2.0, 0.0, 1.0); }`;
+  // Lauren's About overlay: a teal HUE layer at 32% over the whole frame except the photo. It sits above the koi and
+  // under the text, so a koi passing beneath the words is quietened and the text stays easy to read.
+  const fs = `precision mediump float; varying vec2 v; varying vec2 wpos; uniform sampler2D t; uniform sampler2D halo; uniform vec4 ovr; uniform vec4 hole; uniform vec2 ovrY;
+    float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
+    vec3 clipC(vec3 c){ float l = lum(c), n = min(min(c.r, c.g), c.b), x = max(max(c.r, c.g), c.b);
+      if (n < 0.0) c = l + (c - l) * l / max(l - n, 1e-4); if (x > 1.0) c = l + (c - l) * (1.0 - l) / max(x - l, 1e-4); return c; }
+    vec3 setLum(vec3 c, float l){ return clipC(c + (l - lum(c))); }
+    vec3 setSat(vec3 c, float s){ float n = min(min(c.r, c.g), c.b), x = max(max(c.r, c.g), c.b); return x > n ? (c - n) * s / (x - n) : vec3(0.0); }
+    void main(){
+      vec4 c = texture2D(t, v);
+      // koi keep their true colours; only right beneath her words do they sink back into the water a little
+      vec2 hu = (wpos - ovr.xy) / (ovr.zw - ovr.xy);
+      float m = 0.0;
+      if (hu.x > 0.0 && hu.x < 1.0 && hu.y > 0.0 && hu.y < 1.0) m = texture2D(halo, hu).a * 0.5 * smoothstep(ovrY.x, ovrY.y, wpos.y);
+      if (m > 0.0 && c.a > 0.001) c.rgb = mix(c.rgb, vec3(0.05, 0.40, 0.46) * c.a, m);
+      gl_FragColor = c;
+    }`;
+  function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+  const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  const aP = gl.getAttribLocation(prog, 'p'), aUV = gl.getAttribLocation(prog, 'uv');
+  gl.uniform2f(gl.getUniformLocation(prog, 'res'), W, H);
+  { const hx = AX + 1009 * AS, hy = AY + 60 * AS;
+    gl.uniform4f(gl.getUniformLocation(prog, 'ovr'), AX, AY, AX + 1440 * AS, AY + 1024 * AS);
+    gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 431 * AS, hy + 671 * AS);
+    gl.uniform2f(gl.getUniformLocation(prog, 'ovrY'), AY - 300, AY + 300);
+    gl.uniform1i(gl.getUniformLocation(prog, 't'), 0); gl.uniform1i(gl.getUniformLocation(prog, 'halo'), 1); }
+  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=3'; }   // fades in with the About water, no hard edge
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  const idx = []; for (let i = 0; i < N-1; i++) for (let j = 0; j < M-1; j++) { const a = i*M+j, b = a+1, c = a+M, d = c+1; idx.push(a,c,b, b,c,d); }
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+
+  // ---- water layers, stacked like the Figma frame:
+  // base water (with the hue layer) > lettering > painted koi > texture > S-curve lines (linear dodge 15%) > orange koi
+  const wvs = `attribute vec2 p; varying vec2 uv; varying vec2 wp; uniform vec4 rect; uniform vec3 cam;
+    void main(){ uv = p*0.5+0.5; uv.y = 1.0-uv.y; wp = rect.xy + uv*rect.zw;
+      vec2 sp = (wp - cam.xy) * cam.z; gl_Position = vec4(sp.x/1440.0*2.0-1.0, 1.0-sp.y/1024.0*2.0, 0.0, 1.0); }`;
+  const wfs = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    #else
+    precision mediump float;
+    #endif
+    varying vec2 uv; varying vec2 wp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
+    void main(){
+      // one continuous pond: texture coords come from world position, mirrored past the image edge,
+      // so a section's water can run on under the next one while it cross-fades
+      vec2 tu = (wp - src.xy) / src.zw;
+      tu = 1.0 - abs(mod(tu, 2.0) - 1.0);           // mirrored again and again, so the water never runs out
+      float a = smoothstep(fade.x, fade.y, wp.y) * (1.0 - smoothstep(fade.z, fade.w, wp.y)) * smoothstep(fadex.x, fadex.y, wp.x);
+      vec2 q = wp / 1024.0;
+      vec2 d = vec2(sin(q.y*7.0 + time*0.35) + sin((q.x+q.y)*11.0 - time*0.27),
+                    cos(q.x*6.0 - time*0.31) + sin((q.x-q.y)*9.0 + time*0.22)) * 0.0016;
+      // the koi push the water aside as they pass, and leave a soft rippling wake behind the tail
+      vec2 px = wp, w = vec2(0.0); float glow = 0.0;
+      for (int i = 0; i < 16; i++) { vec2 r = px - body[i]; float l = length(r) + 1.0; w += r / l * 14.0 * exp(-(l * l) / 22000.0); }
+      for (int i = 0; i < 32; i++) { vec3 tr = trail[i]; if (tr.z >= 0.0) { vec2 r = px - tr.xy; float l = length(r) + 1.0;
+        float life = smoothstep(0.0, 0.6, tr.z) * (1.0 - smoothstep(2.6, 3.8, tr.z));
+        float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
+        w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
+      d += w / vec2(1440.0, 1024.0);
+      if (mode == 3) { gl_FragColor = texture2D(t, tu) * a; return; }           // lettering: stays crisp and still
+      vec4 c = texture2D(t, tu + d);
+      if (mode == 0) {                                                     // base water + drifting light
+        float l = sin(q.x*5.0 + q.y*3.0 + sin(q.y*4.0 - time*0.2)*1.6 - time*0.18);
+        c.rgb += vec3(0.8, 1.0, 1.0) * (min(glow, 1.5) * 0.045 + smoothstep(0.75, 1.0, l) * 0.035);
+        gl_FragColor = vec4(c.rgb, 1.0) * a;
+      } else if (mode == 2) {                                              // white lines, added like linear dodge
+        gl_FragColor = vec4(vec3(c.a * 0.15 * a), 0.0);
+      } else { gl_FragColor = c * a; }                                         // texture, premultiplied
+    }`;
+  const wprog = gl.createProgram(); gl.attachShader(wprog, sh(gl.VERTEX_SHADER, wvs)); gl.attachShader(wprog, sh(gl.FRAGMENT_SHADER, wfs)); gl.linkProgram(wprog);
+  const wAP = gl.getAttribLocation(wprog, 'p');
+  const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
+  const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
+  const view = () => [camX, cam, camX + 1440 / camZ, cam + 1024 / camZ];
+  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
+  function texFrom(img) {
+    const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(w => gl.texParameteri(gl.TEXTURE_2D, w, gl.CLAMP_TO_EDGE));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); return tx;
+  }
+  const LAYER = {};
+  function beginWater(time) {
+    bodyArr.fill(-9999); trailArr.fill(-1);
+    KOI.forEach((k, fi) => {
+      if (k.P) for (let j = 0; j < 8; j++) { const q = k.P[Math.round(4 + j * (k.iTail - 4) / 7)]; bodyArr[(fi * 8 + j) * 2] = q[0]; bodyArr[(fi * 8 + j) * 2 + 1] = q[1]; }
+      (k.trail || []).forEach((p, j) => { const o = (fi * 16 + j) * 3; trailArr[o] = p[0]; trailArr[o + 1] = p[1]; trailArr[o + 2] = time - p[2]; });
+    });
+    gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
+  }
+  const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
+    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [AX,AY,1440*AS,1024*AS], photo: [...A(1009,60),431*AS,671*AS] };
+  // no edge between the sections: the Landing water runs on below its frame and the About water fades in over it
+  const BLEND = 300, NOFADE = [-1e6, -1e6, 1e6, 1e6];
+  RECT.pond = RECT.base;
+  const DRAW = { pond: [-8000, -6000, 30000, 20000], base: [-700, 0, 2840, AY + BLEND], texture: [-700, 0, 2840, AY + BLEND], lines: [-700, 0, 2840, AY + BLEND], aboutWater: [-700, AY - BLEND, 2840, 1024 * AS + BLEND] };   // runs past the frame edges (mirrored) for the pulled-back view
+  RECT.worksWater = [WX, AY, 1440 * AS, 1024 * AS]; RECT.worksTop = RECT.worksWater.slice();
+  RECT.artWater = [GX, AY, GW * AS, GH * AS]; RECT.artTop = [GX + 930 * AS, AY + 250 * AS, 1440 * AS, GH * AS];   // her "fine art" lettering sits in the open water right of the lotus lockup
+  DRAW.worksWater = [WX - BLEND, AY - BLEND, 1440 * AS + 2 * BLEND, 1024 * AS + 2 * BLEND];
+  DRAW.artWater = [GX, AY - BLEND, GW * AS + 900, GH * AS + 900];   // starts at its own edge: a mirrored copy of her big pads used to spill under the tbd pad on currently
+  const FADEX = { worksWater: [WX - BLEND, WX + BLEND, 0, 0], artWater: [GX, GX + 140, 0, 0] };   // each page's water flows in sideways over the last
+  const FADE = { worksWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], artWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], texture: [-1e6, -1e6, AY - BLEND, AY + BLEND], lines: [-1e6, -1e6, AY - BLEND, AY + BLEND], aboutWater: [AY - BLEND, AY + BLEND, 1e6, 1e6] };
+  function drawLayer(name, mode) {
+    if (!LAYER[name]) return;
+    const sr = RECT[name], r = DRAW[name] || sr, vw = view(); if (r[1] > vw[3] || r[1] + r[3] < vw[1]) return;
+    gl.useProgram(wprog); gl.uniform4fv(wU.r, r); gl.uniform4fv(wU.sr, sr); gl.uniform4fv(wU.f, FADE[name] || NOFADE); gl.uniform4fv(wU.fx, FADEX[name] || [-1e6, -9e5, 0, 0]);
+    gl.useProgram(wprog); gl.disableVertexAttribArray(aUV);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(wAP); gl.vertexAttribPointer(wAP, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1i(wU.m, mode); gl.bindTexture(gl.TEXTURE_2D, LAYER[name]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // ---- floating leaves cut from the 2024 Koi Calendar, drawn under the koi.
+  // Two drifts mirror each other across the lettering (top right, bottom left), laid along the koi's oval like the calendar's leaf trail.
+  // Each leaf has a home in its drift; a passing koi pushes it aside and it eases back, and the drifts turn very slowly with the current.
+  const LEAF_IMG = {};
+  const COLORS = [8, 4, 0, 9, 5, 1, 6, 2, 7, 3];   // yellow, light green, dark green in rhythm
+  const LEAVES = [];
+  [[0.16, 0.50], [1.16, 1.50]].forEach(([f0, f1], band) => {
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const u = i / (n - 1), phi = (f0 + (f1 - f0) * u) * Math.PI;
+      const side = (i % 2 ? 1 : -1) * (14 + 18 * Math.sin(u * Math.PI));     // ribbon: widest mid-drift, tapering at both ends
+      LEAVES.push({ phi, off: side + Math.sin(i * 2.1 + band) * 6, img: `leaf-${COLORS[(i + band * 3) % COLORS.length]}.png`,
+        size: 24 + ((i * 7 + band * 3) % 4) * 3, tilt: Math.sin(i * 1.7 + band) * 0.45, dx: 0, dy: 0, vx: 0, vy: 0, wob: i * 1.3 + band });
+    }
+  });
+  // the same drifts on every other page, laid along that page's swim loop and sized so they look the same on screen at that page's zoom
+  { const drift = (path, bands, k, n) => bands.forEach(([f0, f1], band) => { for (let i = 0; i < n; i++) {
+      const u = i / (n - 1), fr = f0 + (f1 - f0) * u, side = (i % 2 ? 1 : -1) * (14 + 18 * Math.sin(u * Math.PI));
+      LEAVES.push({ path, fr, k, off: (side + Math.sin(i * 2.1 + band) * 6) * k, img: `leaf-${COLORS[(i + band * 3 + 2) % COLORS.length]}.png`,
+        size: (24 + ((i * 7 + band * 3) % 4) * 3) * k, tilt: Math.sin(i * 1.7 + band) * 0.45, dx: 0, dy: 0, vx: 0, vy: 0, wob: i * 1.3 + band }); } });
+    drift(ABOUT_OVAL, [[0.08, 0.25], [0.58, 0.75]], AS, 8);
+    drift(WORKS_OVAL, [[0.08, 0.25], [0.58, 0.75]], AS, 8);
+    drift(ART_OVAL, [[0.02, 0.12], [0.27, 0.37], [0.52, 0.62], [0.77, 0.87]], 1 / ZA, 8); }
+  const leafUV = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, leafUV); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.STATIC_DRAW);
+  const leafPB = gl.createBuffer(), leafPos = new Float32Array(8);
+  let leafSpin = 0;
+  function leafHome(L) {
+    if (L.path) { const P = L.path, x = (((L.fr + leafSpin / (2 * Math.PI)) % 1) + 1) % 1 * P.n, i = Math.min(P.n - 1, Math.floor(x)), g = x - i;
+      const a = P.p[i], b = P.p[i + 1], q = [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g], t = norm(sub(b, a)), nrm = [-t[1], t[0]];
+      return { p: add(q, mul(nrm, L.off)), a: Math.atan2(t[1], t[0]) + L.tilt }; }
+    const f = L.phi + leafSpin, x = C[0] + RX * Math.cos(f), y = C[1] - RY * Math.sin(f);
+    const t = norm([-RX * Math.sin(f), -RY * Math.cos(f)]), nrm = [-t[1], t[0]];
+    return { p: add([x, y], mul(nrm, L.off)), a: Math.atan2(t[1], t[0]) + L.tilt };
+  }
+  function stepLeaves(dt, time) {
+    leafSpin += dt * 0.012;                                     // the drifts turn with the pond, very slowly
+    for (const L of LEAVES) {
+      const h = leafHome(L); const x = h.p[0] + L.dx, y = h.p[1] + L.dy;
+      let fx = -L.dx * 1.2, fy = -L.dy * 1.2;                   // ease back toward the drift
+      const kk = L.k || 1, R = 150 * kk;
+      for (const k of KOI) {
+        if (!k.P) continue;
+        for (let i = 4; i < k.iTail + 6; i += 3) {
+          const q = k.P[i], ex = x - q[0], ey = y - q[1], dd = Math.hypot(ex, ey);
+          if (dd < R) {
+            const f = 1 - dd / R, nx = k.P[i - 1][0] - k.P[i + 1][0], ny = k.P[i - 1][1] - k.P[i + 1][1], nl = Math.hypot(nx, ny) || 1;
+            fx += (nx / nl) * k.speed * 0.5 * f + (ex / (dd || 1)) * 70 * kk * f * f;
+            fy += (ny / nl) * k.speed * 0.5 * f + (ey / (dd || 1)) * 70 * kk * f * f;
+          }
+        }
+      }
+      L.vx += (fx - L.vx) * Math.min(1, dt * 1.2); L.vy += (fy - L.vy) * Math.min(1, dt * 1.2);
+      L.dx += L.vx * dt; L.dy += L.vy * dt;
+      const m = Math.hypot(L.dx, L.dy); if (m > 140 * kk) { L.dx *= 140 * kk / m; L.dy *= 140 * kk / m; }
+      L.spinOff = (L.spinOff || 0) + ((Math.atan2(L.vy, L.vx) - h.a) * Math.min(1, Math.hypot(L.vx, L.vy) / (120 * kk)) * 0.3 - (L.spinOff || 0)) * Math.min(1, dt);
+    }
+  }
+  function drawLeaves(time) {
+    gl.useProgram(prog);
+    for (const L of LEAVES) {
+      const im = LEAF_IMG[L.img]; if (!im) continue;
+      const h = leafHome(L), cx = h.p[0] + L.dx, cy = h.p[1] + L.dy;
+      const a = h.a + (L.spinOff || 0) + Math.sin(time * 0.5 + L.wob) * 0.05;
+      const sc = L.size / Math.max(im.w - 24, im.h - 24) * (1 + Math.sin(time * 0.8 + L.wob) * 0.03);
+      const hw = im.w * sc / 2, hh = im.h * sc / 2, c = Math.cos(a), s = Math.sin(a);
+      [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]].forEach(([u, v], i) => { leafPos[i * 2] = cx + u * c - v * s; leafPos[i * 2 + 1] = cy + u * s + v * c; });
+      gl.bindBuffer(gl.ARRAY_BUFFER, leafPB); gl.bufferData(gl.ARRAY_BUFFER, leafPos, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, leafUV); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+      gl.bindTexture(gl.TEXTURE_2D, im.tex); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+  }
+  [...new Set(LEAVES.map(L => L.img))].forEach(src => { const im = new Image(); im.onload = () => { LEAF_IMG[src] = { tex: texFrom(im), w: im.width, h: im.height }; }; im.src = src; });
+
+
+  // ---- Lauren's lily pad in the About section: stays put, turns very slightly in the current,
+  // and gives a small nudge and turn when a koi swims over it, then settles back.
+  // her second pad sits in the bottom right corner (completed into a whole pad and nudged in so none of it is cut off); it moves even less
+  const PADS = [{ c: A(186.5, 251 + 203), w: 373 * AS, h: 406 * AS, src: 'lilypad.png?v=2', k: 1 },
+                { c: A(1218, 852), w: 456 * AS, h: 456 * AS, src: 'lilypad2-full.png', k: 0.5 }];
+  PADS.forEach(P => { Object.assign(P, { a: 0, va: 0, dx: 0, dy: 0, vx: 0, vy: 0, tex: null }); const im = new Image(); im.onload = () => { P.tex = texFrom(im); }; im.src = P.src; });
+  const padPB = gl.createBuffer(), padPos = new Float32Array(8);
+  function stepPad(dt) { PADS.forEach(P => stepOnePad(P, dt)); }
+  function stepOnePad(PAD, dt) {
+    if (!dt) return;
+    let fx = 0, fy = 0, tq = 0;
+    for (const k of KOI) {
+      if (!k.P) continue;
+      for (let i = 4; i < k.iTail + 6; i += 3) {
+        const q = k.P[i], ex = PAD.c[0] - q[0], ey = PAD.c[1] - q[1], d = Math.hypot(ex, ey);
+        if (d < 200) {
+          const f = 1 - d / 200, tx = k.P[i - 1][0] - k.P[i + 1][0], ty = k.P[i - 1][1] - k.P[i + 1][1], tl = Math.hypot(tx, ty) || 1;
+          fx += (ex / (d || 1)) * 30 * f * f + tx / tl * 8 * f; fy += (ey / (d || 1)) * 30 * f * f + ty / tl * 8 * f;
+          tq += ((ex * ty - ey * tx) / ((d || 1) * tl)) * 0.35 * f;          // the passing body drags the pad round a little
+        }
+      }
+    }
+    PAD.va += (-PAD.a * 2.2 - PAD.va * 1.5 + tq) * dt; PAD.a += PAD.va * dt;
+    PAD.vx += (-PAD.dx * 3 - PAD.vx * 2 + fx) * dt; PAD.vy += (-PAD.dy * 3 - PAD.vy * 2 + fy) * dt;
+    PAD.dx += PAD.vx * dt; PAD.dy += PAD.vy * dt;
+    PAD.a = Math.max(-0.25, Math.min(0.25, PAD.a));
+    PAD.a = Math.max(-0.25 * PAD.k, Math.min(0.25 * PAD.k, PAD.a));
+    const mx = 14 * PAD.k, m = Math.hypot(PAD.dx, PAD.dy); if (m > mx) { PAD.dx *= mx / m; PAD.dy *= mx / m; }
+  }
+  function drawPad(time, PAD) {
+    if (!PAD.tex || PAD.c[1] - 300 > view()[3]) return;
+    gl.useProgram(prog);
+    const a = PAD.a + Math.sin(time * 0.33 + PAD.k * 2) * 0.03 * PAD.k, c = Math.cos(a), sn = Math.sin(a);
+    const cx = PAD.c[0] + PAD.dx, cy = PAD.c[1] + PAD.dy + Math.sin(time * 0.5 + PAD.k * 2) * 1.5 * PAD.k, hw = PAD.w / 2, hh = PAD.h / 2;
+    [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]].forEach(([u, v], i) => { padPos[i * 2] = cx + u * c - v * sn; padPos[i * 2 + 1] = cy + u * sn + v * c; });
+    gl.bindBuffer(gl.ARRAY_BUFFER, padPB); gl.bufferData(gl.ARRAY_BUFFER, padPos, gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, leafUV); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+    gl.bindTexture(gl.TEXTURE_2D, PAD.tex); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  function potCanvas(img) {            // WebGL 1 only mipmaps power-of-two sizes; uv are 0..1 so stretching is harmless
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 2048;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, 2048, 2048); return c;
+  }
+  function setup(k, img) {
+    // textures carry a 100px transparent margin; the mesh runs well past snout and tail so the soft shadow is never clipped
+    const r = resample(k.spine.map(q => [q[0] + 100, q[1] + 100]), N, 120, 240);
+    k.half += 80;
+    k.rest = r.pts; k.L = r.L; k.s = r.pts.map((_, i) => r.L * i / (N - 1) - r.offset); // s = 0 at the snout
+    k.nr = normals(k.rest, 4);
+    k.cols = Array.from({ length: M }, (_, j) => -k.half + 2 * k.half * j / (M - 1));
+    const uv = new Float32Array(N * M * 2);
+    for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) {
+      const q = add(k.rest[i], mul(k.nr[i], k.cols[j]));
+      uv[(i*M+j)*2] = q[0] / img.width; uv[(i*M+j)*2+1] = q[1] / img.height;
+    }
+    k.uvb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+    k.pb = gl.createBuffer(); k.pos = new Float32Array(N * M * 2);
+    k.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, k.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, potCanvas(img));
+    gl.generateMipmap(gl.TEXTURE_2D);       // smooth when the koi shrink in the About section, no pixel shimmer
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    startTrack(k, LOOPS[mode], k.lap0 * LOOPS[mode].P, mode === 'about' ? (k.aboutScale || 1) : 1);   // a deep link (#fine-art) starts them on that page
+  }
+
+  // ---- swim model (top view, carangiform like a carp)
+  // body wave: amplitude envelope A(u) = 0.02 - 0.08u + 0.16u^2 of body length, stiff head, biggest at the tail
+  // beat-and-glide: a few tail beats, then a coast with the fins spread, as koi cruise
+  const smooth = x => x * x * (3 - 2 * x);
+  function beatEnvelope(t, k) {
+    const cycle = 4.2, tt = (t + k.phase0 * 1.3) % cycle;       // 2.6 s beating, 1.6 s gliding
+    if (tt < 0.35) return smooth(tt / 0.35);
+    if (tt < 2.6) return 1;
+    if (tt < 3.2) return 1 - smooth((tt - 2.6) / 0.6) * 0.78;
+    if (tt < 3.85) return 0.22;
+    return 0.22 + smooth((tt - 3.85) / 0.35) * 0.78;
+  }
+  function pose(k, t, dt) {
+    k.envS = k.envS === undefined ? beatEnvelope(t, k) : k.envS + (beatEnvelope(t, k) - k.envS) * Math.min(1, dt * 1.6);
+    const env = k.envS;  // eased so beats start and fade gently
+    let tf = 1;
+    if (k.trans) {                                     // on the planned curve: grow or shrink to the next size, glide a bit faster mid-way
+      tf = Math.max(0, Math.min(1, (k.dist - k.trans.d0) / Math.max(1, k.trans.d1 - k.trans.d0)));
+      k.sc = k.trans.sc0 + (k.trans.sc1 - k.trans.sc0) * smooth(tf);
+      if (tf >= 1) k.trans = null;
+    } else k.sc += (k.scT - k.sc) * Math.min(1, dt * 1.4);
+    let off = false;                                    // fully off screen: hurry round to the next way in
+    if (!k.trans && mode === 'about' && k.P) { const vw = view(); off = k.P.every((q, i) => i % 5 || q[0] < vw[0] - 60 || q[0] > vw[2] + 60 || q[1] < vw[1] - 60 || q[1] > vw[3] + 60); }
+    const boostT = k.trans ? 1 + 4.6 * Math.min(3, Math.max(1, k.trans.len / 1500)) * Math.max(0, Math.sin(Math.PI * Math.max(0, Math.min(1, tf * 1.15)))) ** 0.7 : off ? 3.2 : 1;   // speeds up smoothly, eases off as it arrives
+    k.boost = k.boost === undefined ? 1 : k.boost + (boostT - k.boost) * Math.min(1, dt * (k.trans ? 3 : 1.2));   // speed builds and fades gradually, a glide rather than a dart
+    k.speed = k.speed === undefined ? 120 : k.speed + ((70 + 95 * env) - k.speed) * Math.min(1, dt * 1.2);  // thrust follows the beats, coasting slows down
+    // keep the pair half a loop apart: whichever koi is too close behind the other eases off, the one ahead picks up
+    let space = 1; const o = KOI.find(q => q !== k);
+    if (!k.trans && !o.trans && o.plan && o.plan.loop === k.plan.loop && o.td) {
+      const L = k.plan.loop, uk = k.plan.u - (k.td[k.td.length-1] - k.dist), uo = o.plan.u - (o.td[o.td.length-1] - o.dist);
+      const lead = (((uk - uo) % L.P) + L.P) % L.P;      // how far k is ahead of o along the loop
+      space = 1 - 0.6 * Math.tanh((lead - L.P / 2) / (L.P * 0.08));
+    }
+    k.space = k.space === undefined ? space : k.space + (space - k.space) * Math.min(1, dt * 1.2);
+    const step = k.speed * (k.trans ? Math.max(k.sc, 0.85) : k.sc) * k.boost * k.space * dt;
+    k.dist += step; feed(k);
+    const headD = k.dist, sc = k.sc;
+    const hp = trackAt(k, headD);
+    const Lb = k.body, lam = 1.35 * Lb, w = 2 * Math.PI * k.freq * (0.75 + 0.25 * env) * (0.8 + 0.2 * Math.min(k.boost, 2.3));
+    k.wphase = (k.wphase || 0) + w * dt;
+    // the original swim: the body traces the head's path (follow-the-leader) with a gentle carp wave
+    const P = [];
+    for (let i = 0; i < N; i++) {
+      const s = k.s[i];
+      const pa = trackAt(k, headD - Math.max(s, 0) * sc);
+      let base = pa.p;
+      const tan = s < 0 ? hp.tan : pa.tan;
+      if (s < 0) base = add(hp.p, mul(tan, -s * sc));
+      const nrm = [-tan[1], tan[0]];
+      const u = Math.max(0, s) / Lb;
+      let A = 0.012 - 0.04 * u + 0.085 * u * u;
+      if (u > 1) A = 0.057 + 0.045 * (u - 1);
+      A = Math.max(A, 0.008);
+      let lat = Lb * A * Math.sin(2 * Math.PI * s / lam - k.wphase) * (0.35 + 0.65 * env);
+      if (u > 1) lat += 2.5 * (u - 1) * Math.sin(4 * Math.PI * s / lam - 1.3 * k.wphase);
+      if (u > 0.85) lat += -Lb * 0.05 * (1 - env) * (u - 0.85);
+      P.push(add(base, mul(nrm, lat * sc)));
+    }
+    k.P = P;
+    // drop a wake point behind the tail base every so often; the water shader ripples outward from these
+    if (!k.iTail) { let bi = 0; k.s.forEach((s, i) => { if (Math.abs(s - k.body) < Math.abs(k.s[bi] - k.body)) bi = i; }); k.iTail = bi; k.trail = []; k.trailClock = 0; }
+    k.trailClock += dt;
+    if (k.trailClock > 0.25) { k.trailClock = 0; k.trail.unshift([P[k.iTail][0], P[k.iTail][1], t]); if (k.trail.length > 16) k.trail.pop(); }
+    const nn = normals(P, 8);                          // smoother cross-sections so the soft edges never fold on a turn
+    // whiskers (barbels): everything ahead of and beside the mouth drifts gently around the mouth, each side on its own rhythm
+    let iM = 0; k.s.forEach((s, i) => { if (Math.abs(s - 0.04 * Lb) < Math.abs(k.s[iM] - 0.04 * Lb)) iM = i; });
+    const mouth = P[iM], wt = k.wt = (k.wt || 0) + dt;
+    for (let i = 0; i < N; i++) {
+      const u = Math.max(0, k.s[i]) / Lb;
+      const tan = [nn[i][1], -nn[i][0]];
+      for (let j = 0; j < M; j++) {
+        const v = k.cols[j] * sc;
+        let q = add(P[i], mul(nn[i], v));
+        // pectoral fins: fold back against the body while beating, spread out to steer and brake in the glide
+        const out = Math.abs(v) - k.bodyHalf * sc;
+        if (out > 0 && u > 0.12 && u < 0.6) {
+          const zone = Math.sin(Math.PI * (u - 0.12) / 0.48);
+          const fold = (0.15 + 0.4 * env) * zone;
+          q = add(q, mul(tan, -out * fold * 0.55));
+          q = add(q, mul(nn[i], -Math.sign(v) * out * fold * 0.25));
+        }
+        if (k.s[i] < 0.1 * Lb) {
+          const r = len(sub(q, mouth)), w = smooth(Math.max(0, Math.min(1, (r - 38 * sc) / (70 * sc)))) * (k.s[i] < 0.06 * Lb ? 1 : (0.1 * Lb - k.s[i]) / (0.04 * Lb));
+          if (w > 0) {
+            const side = Math.sign(v) || 1, sway = k.speed > 0 ? 1 : 0;
+            const a = w * sway * (0.16 * Math.sin(wt * 1.5 + side * 1.2 + k.phase0) + 0.06 * Math.sin(wt * 2.9 + side * 0.4 + k.phase0 * 2));
+            const d = sub(q, mouth), c = Math.cos(a), sn = Math.sin(a);
+            q = add(mouth, [d[0] * c - d[1] * sn, d[0] * sn + d[1] * c]);
+          }
+        }
+        k.pos[(i*M+j)*2] = q[0]; k.pos[(i*M+j)*2+1] = q[1];
+      }
+    }
+  }
+  function draw(k) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, k.pb); gl.bufferData(gl.ARRAY_BUFFER, k.pos, gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+    gl.bindTexture(gl.TEXTURE_2D, k.tex);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
+  }
+
+  let running = !matchMedia('(prefers-reduced-motion: reduce)').matches, t = 0, last = null;
+  const btn = document.getElementById('play');
+  btn.textContent = running ? 'still the water' : 'let them swim';      // pausing lives quietly at the end of the menu
+  btn.addEventListener('click', e => { e.stopPropagation(); running = !running; btn.textContent = running ? 'still the water' : 'let them swim'; last = null; });
+
+  window.__cam = () => [t, camX, cam, camZ, page, camAnim && camAnim.p, camAnim && camAnim.t, scrollY].map(v => typeof v === "number" ? +v.toFixed(3) : v);
+  window.__dbg = () => KOI.map(k => [k.name, Math.round(k.speed * k.sc * k.boost), k.trans ? 'curve' : 'loop', k.boost.toFixed(2), (k.space||1).toFixed(2), k.plan && k.td ? Math.round(k.plan.u - (k.td[k.td.length-1] - k.dist)) % Math.round(k.plan.loop.P) : 0].join(' ')).join(' | ');
+  window.__heads = () => KOI.map(k => k.tp ? trackAt(k, k.dist).p.map(Math.round) : null).concat([ART_OVAL.P, koiDY]);
+  let koiDX = 0, koiDY = 0, koiT = [0, 0], lastScrollT = -1e9, mouse = null, lastY = 0, page = 'home', home = [0, 0, 1], artX = 0, camAnim = null;
+  const pondH = () => canvas.getBoundingClientRect().height || innerHeight;
+  function camTarget() {
+    if (page === 'works') return [WX, AY, Z];
+    if (page === 'art') return [GX + artX, AY, ZA];
+    return home;
+  }
+  function stepCam(dt) {
+    const tg = camTarget();
+    if (camAnim && camAnim.zoom) {                     // dive into the fine art pad; it keeps growing as it melts into the art page
+      const A0 = camAnim; A0.t += dt;
+      if (!A0.cut) {
+        const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u) * 0.35 + u * u * u * 0.65;   // gathers speed as it plunges
+        const z = Z * Math.pow(A0.zoom, e);
+        const f = (1 / Z - 1 / z) / (1 / Z - 1 / (Z * A0.zoom));      // the pad stays put on screen while it grows
+        const c = [A0.c0[0] + (A0.p0[0] - A0.c0[0]) * f, A0.c0[1] + (A0.p0[1] - A0.c0[1]) * f];
+        camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
+        if (u >= 1) A0.snap = true;                     // frame() grabs this picture, then we cut to the art page under it
+      } else {
+        const v = Math.min(1, (A0.t - A0.cut) / A0.fade), ev = 1 - Math.pow(1 - v, 3);
+        snapEl.style.opacity = String(1 - ev);
+        snapEl.style.transform = `scale(${1 + 1.6 * ev})`;
+        [camX, cam, camZ] = tg;
+        if (v >= 1) { snapEl.hidden = true; camAnim = null; }
+      }
+      dirty = true;
+    } else if (camAnim) {
+      // the koi lead: the view travels only as far as the koi have swum toward the next page, leaning in on them mid-way
+      const A0 = camAnim, f = A0.from, ctr = (x, y, z) => [x + 720 / z, y + 512 / z];
+      const c0 = ctr(...f), c1 = ctr(...tg), dir = sub(c1, c0), L2 = Math.max(1, dir[0] * dir[0] + dir[1] * dir[1]);
+      A0.t += dt;
+      const heads = KOI.map(k => k.tp ? trackAt(k, k.dist).p : c0);
+      const lead = Math.max(...heads.map(h => ((h[0] - c0[0]) * dir[0] + (h[1] - c0[1]) * dir[1]) / L2));
+      const tt = Math.min(1, A0.t / (A0.dur || 1.9)), floor = tt * tt * tt * (tt * (6 * tt - 15) + 10);   // never slower than this, even if the koi dawdle
+      const goal = Math.min(1, Math.max(floor, lead - 0.05));
+      A0.p = Math.min(1, Math.max((A0.p || 0) + dt * 0.12, (A0.p || 0) + (goal - (A0.p || 0)) * (1 - Math.exp(-dt * 4))));   // always drifting forward, never a stall
+      const p = A0.p, w = Math.sin(Math.PI * Math.min(1, p));
+      const mid = mul(add(heads[0], heads[1]), 0.5), base = add(c0, mul(dir, p));
+      const c = add(base, mul(sub(mid, base), 0.45 * w));
+      const z = Math.exp(Math.log(f[2]) + (Math.log(tg[2]) - Math.log(f[2])) * p) * (1 + 0.4 * w);   // zoom in on the koi as they travel
+      camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
+      if (p > 0.995) camAnim = null;
+      dirty = true;
+    } else {                                         // glide after the scroll instead of jumping with each wheel step
+      const k = 1 - Math.exp(-dt * 9), cur = [camX, cam, camZ];
+      const nx = cur.map((v, i) => v + (tg[i] - v) * (dt ? k : 1));
+      if (Math.abs(nx[1] - tg[1]) < 0.3 && Math.abs(nx[2] - tg[2]) < 1e-4) nx.splice(0, 3, ...tg); else dirty = true;
+      [camX, cam, camZ] = nx;
+    }
+  }
+  // ---- pages: About -> (follow the current) -> currently -> (fine art pad) -> fine art. The koi set off first and the view follows them.
+  const spacer = document.getElementById('spacer'), backBtn = document.getElementById('back');
+  const snapEl = document.getElementById('snap'), followBtn = document.getElementById('follow'), artPad = document.getElementById('artpad'), note = document.getElementById('note');
+  function go(pg, push, spot) {
+    if (pg === page) return;
+    const from = [camX, cam, camZ], fwd = (pg === 'works' && page === 'home') || pg === 'art';
+    if (openIdx >= 0) { openIdx = -1; detail.hidden = true; if (openFrom) openFrom.style.visibility = ''; }
+    page = pg; document.body.dataset.page = pg; artX = 0;
+    if (push) { try { history.pushState({ page: pg }, '', pg === 'home' ? '#about' : pg === 'works' ? '#currently' : '#fine-art'); } catch (e) {} }
+    if (pg === 'art') spacer.style.height = (innerHeight + artMax() * artK()) + 'px';   // scrolling down glides you sideways along the pond
+    const top = spot === 'landing';
+    if (pg === 'home') { home = top ? [0, 0, 1] : [AX, AY, Z]; scrollTo(0, top ? 0 : innerHeight); lastY = scrollY; } else scrollTo(0, 0);
+    retarget(pg === 'home' ? (top ? 'landing' : 'about') : pg, running);
+    const lead = Math.min(...KOI.map(k => k.trans ? k.trans.len : 0));      // a longer swim gets a little longer, so the koi stay ahead of the view
+    camAnim = { from, t: 0, p: 0, dur: Math.max(1.9, Math.min(3.2, lead / 1300)) };
+    syncUI(); dirty = true;
+  }
+  followBtn.addEventListener('click', () => go('works', true));
+  artPad.addEventListener('click', () => go('art', true));      // the koi swim off to the right and the view follows them downstream to the art pond
+  // jump anywhere: home (landing) and About are scroll spots on the first page; currently and fine art slide across
+  function navTo(spot) {
+    if (spot === 'works' || spot === 'art') return go(spot, true);
+    if (page !== 'home') return go('home', true, spot);
+    scrollTo({ top: spot === 'landing' ? 0 : innerHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  backBtn.addEventListener('click', () => navTo('landing'));
+  document.getElementById('brand').addEventListener('click', () => navTo('landing'));   // her lotus lockup goes home       // "move upstream": back to the landing page
+  const menuBtn = document.getElementById('menu'), menuList = document.getElementById('menulist');
+  function setMenu(open) {
+    if (open) { const here = page === 'works' ? 'works' : page === 'art' ? 'art' : scrollY < innerHeight * 0.5 ? 'landing' : 'about';
+      menuList.querySelectorAll('[data-go]').forEach(b => b.dataset.go === here ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')); }
+    menuList.hidden = !open; menuBtn.setAttribute('aria-expanded', open); }
+  menuBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(menuList.hidden); });
+  menuList.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { setMenu(false); navTo(b.dataset.go); } });
+  addEventListener('click', e => { if (!menuList.hidden && !menuList.contains(e.target)) setMenu(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+  addEventListener('popstate', e => go((e.state && e.state.page) || 'home', false));
+  followBtn.addEventListener('pointerenter', () => { PADS[1].va += 0.25; });          // her pad gives a little turn when you reach for it
+
+  // ---- fine art: hover (or tap / Enter) a piece to dive into its detail slide; leave it by the arrow, Esc, a click on the pad, or scrolling
+  const TW = {"invisible-circus": 892, "puppetry": 504, "80000-hours": 587, "unfolded-box": 1022, "threads-of-identity": 1028, "boxed-in": 618, "doomscrolled": 686, "receipts": 458, "fishing-for-parts": 915, "temporal-mechanics": 996, "chronotopia": 623};
+  const ART = [{"id": "invisible-circus", "spot": [350, 1109], "title": "Invisible Circus", "tile": [137, 246, 360, 592], "photo": [805, 252, 431, 660], "meta": [["Year", "2024"], ["Medium", "Oil on canvas"], ["Dimension", "24” x 36”"]], "desc": "My mind often houses an invisible circus of competing thoughts and impulses. While it appears that I am being pulled almost apart by competitions for my attention and interest, I find comfort in the consistent intensity of being inundated with internal and external sensations, and, consequently, my typical sensation of time is quite rapid. I redefine my relationship with my own visage by processing all my internal and external thoughts, impulses, and sensations through art in an introspective yet playful process."}, {"id": "unfolded-box", "spot": [324, 318], "title": "The Unfolded Box", "tile": [557, 246, 360, 314], "photo": [720, 353, 600, 457], "meta": [["Year", "2025"], ["Medium", "Watercolor and colored pencil on paper"], ["Dimension", "32” x 24”"]], "desc": "The Unfolded Box deliberately hyperbolizes the feeling of tension and anxiety unique to the office setting. Expanding upon the themes of isolation and overwork in 80,000 Hours, corporate time becomes simultaneously discarded yet made to be an active antagonist. Whereas 80,000 Hours explored how identity dissolves into routine, The Unfolded Box examines the multitude of pressures compressed within one cubicle. Drawing on the principle that decreased volume creates increased pressure, the work reveals how every inch of the interior is suffocatingly filled with tasks, notes, and demands."}, {"id": "80000-hours", "spot": [782, 684], "title": "80,000 Hours", "tile": [977, 246, 360, 337], "photo": [720, 334, 600, 495], "meta": [["Year", "2024"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 24”"]], "desc": "The average person spends 80,000 hours working in their lifetime, often hunched in a cubicle beneath the phosphorescent glow of a screen. This piece depicts skeletal figures slumped in cubicles, their heads replaced by burnt-out bulbs to symbolize mental exhaustion and loss of individuality. The use of a harsh cyan palette and endless grids mimics the cold, repetitive nature of modern office spaces.\nBy emphasizing uniformity and depressing conditions, the work questions what remains of our identity and purpose when human labor becomes tedious and eventually obsolete in the rise of artificial intelligence."}, {"id": "puppetry", "spot": [1162, 1141], "title": "Puppetry", "tile": [557, 624, 360, 488], "photo": [755, 252, 530, 660], "meta": [["Year", "2025"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 20”"]], "desc": "The performative self portrait is a way in which I navigate my internal and external sources of motivation and willpower. As I find myself in cycles of excessive work and excessive burnout, I suppress the desire to control the intangible. Surrealism is the only arena where my impulses roam free, without boundaries, safe enough to confront my goals. My identity and likeness become vehicles of desire and possibility as I start to bring my envisioned self into the physical world. I am the puppeteer, not for power, but for survival."}, {"id": "boxed-in", "spot": [1311, 244], "title": "Boxed In", "tile": [977, 647, 360, 401], "photo": [720, 281, 600, 602], "meta": [["Year", "2025"], ["Medium", "Acrylic on cardboard"], ["Dimension", "32” x 32” x 32”"]], "desc": "To participate in the unspoken Laws of Conformity requires little thought. Its comfort lies in passivity, an easy script of behaviors that allow for almost seamless social integration and which masks individuality. In this piece, the viewer is invited to crawl inside the brain of someone surrendering to conformity. The forms suggest a mind that folds in on itself, molding too well to the Laws of Conformity."}, {"id": "threads-of-identity", "spot": [1805, 1177], "title": "Threads of Identity", "tile": [137, 902, 360, 284], "photo": [720, 379, 600, 406], "meta": [["Year", "2024"], ["Medium", "Mixed media"], ["Dimension", "20” x 30”"]], "desc": "Emotions like excitement, love, sorrow, and disdain are not shaped solely in positive or negative contexts. Some amalgamation of experiences results in human feelings that are far more layered than pure. The heart responds to flow. Functionally, the flow of blood throughout the body, and symbolically, the flow of emotions from ourselves to other humans. In surveying a cross-section of my community, I capture a polarity of memories and experiences that we often bifurcate into good and evil. The bifurcated heart houses these two islands of memories, connected by “veins” of yarn that reveal the true intertwined nature of human emotion."}, {"id": "temporal-mechanics", "spot": [1875, 521], "title": "Temporal Mechanics", "tile": [977, 1112, 360, 243], "photo": [720, 413, 600, 338], "meta": [["Year", "2025"], ["Medium", "Video"], ["Running Time", "48 s"], ["Dimension", "40” x 80”"]], "desc": "In this piece, analog and digital clocks represent universally acknowledged standard forward progression of time. However, each clock is set at a different time and runs at different speeds, showing how the individual experience of these agreed upon units of advancement varies radically from individual to individual. Projected over the clocks, the video shows clips of moments that show how the experience of waiting for an event to start can drag slowly, while the same amount of time can feel rapid as one races to work. Every moment on video occurred concurrently. The result is chaotic yet universally recognized."}, {"id": "chronotopia", "spot": [2476, 938], "title": "Chronotopia", "tile": [557, 1176, 360, 193], "photo": [720, 454, 600, 255], "meta": [["Year", "2025"], ["Medium", "Video and mixed media"], ["Running Time", "12 s"], ["Dimension", "16” x 18”"]], "desc": "The chronotope, or the unique human perception of the time-space continuum, is a constitutive aspect of literature and the arts, as Mikhail Bakhtin describes. For Bakhtin, one’s ideologies and worldview inform how they perceive the flow of events, and time becomes visible as it changes the landscape it inhabits. Over 14 days and 72 recorded hours, I observed a familiar public space, capturing how a single space can hold the residue of multiple moments. This work resists a singular experience of time. Instead, it is built from accumulated traces: quiet repetitions, residues of multiple moments, subtle shifts, and lingering echoes."}, {"id": "receipts", "spot": [3384, 1118], "title": "Receipts", "tile": [137, 1250, 360, 494], "photo": [758, 252, 524, 660], "meta": [["Year", "2025"], ["Medium", "Sculpture"], ["Dimension", "13” x 10” x 8”"]], "desc": "Our society runs on results. The process of creation is overlooked, minimized through factories and technology, stripping away labor to maximize output and profit. The repetitive and rigid forms of hands sculpted from receipts are used to represent how human effort is reduced to measurable outcomes. The melted wax, an echo of the candles once used as humanity's primary light source, now replaced by electricity, freezes the hands' attempts to escape, to cultivate, and to work. By mirroring the very systems it critiques, the work reflects the erasure of time and individuality in a society driven by speed and productivity."}, {"id": "doomscrolled", "spot": [2235, 1527], "title": "Doomscrolled", "tile": [977, 1419, 360, 333], "photo": [720, 338, 600, 488], "meta": [["Year", "2025"], ["Medium", "Mixed media"], ["Dimension", "24” x 30”"]], "desc": "An artificial light source illuminates the amygdala, simulating brain activity. Upon the recognition of human limbs curled up in a claustrophobic position, the light becomes the oversaturating glow of the screen, bringing along suppressed feelings of shame that go hand in hand with excessive screen use. On a social level, time spent online destroys opportunity and productivity, and on a biological level, the prefrontal skill to establish objectives and visualize goals begins to rust. Buried under the false protection of blankets, time slips away as hours of the night are spent awake to make up for the day."}, {"id": "fishing-for-parts", "spot": [2952, 615], "title": "Fishing for Parts", "tile": [557, 1433, 360, 313], "photo": [720, 354, 600, 455], "meta": [["Year", "2024"], ["Medium", "Clay"], ["Dimension", "36” x 48” x 12”"]], "desc": "Fishing for Parts examines the tension between personal freedom and ethical constraint in an age of accelerating technological advancement. Drawing from historical surgical cases, dismembered body parts cast in white are suspended in red netting; its representation evokes anatomical specimens and a sense of entrapment. The fragmented forms suggest a conflict between bodily autonomy and medical responsibility, highlighting the precarious role of doctors in mediating extreme acts of self-modification. By collapsing the boundaries between agency and clinical intervention, the work reveals the unsettling implications of treating the human body as a site of radical experimentation."}];
+  const tilesEl = document.getElementById('tiles'), detail = document.getElementById('detail');
+  const dTitle = document.getElementById('dtitle'), dMeta = document.getElementById('dmeta'), dDesc = document.getElementById('ddesc'), dImg = document.getElementById('dimg');
+  ART.forEach(a => { [a.id + '.jpg', 'title-' + a.id + '.png'].forEach(f => { const im = new Image(); im.src = 'art/' + f; }); });          // warm the cache so a slide opens with its picture
+  const FLOAT = ART.map((a, i) => {                 // each piece's resting spot (her gallery layout, loosened a little), tilt and drift rhythm
+    const r = n => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
+    const w = 360 * 1.4, h = w * a.photo[3] / a.photo[2], cx = a.spot[0] + 180, cy = a.spot[1] + 180 * a.photo[3] / a.photo[2];   // her Figma spot, each piece 1.4x bigger around its own centre
+    return { cx, cy, w, h, rot: r(3) * 0.045,
+      ph: [r(4) * 6.3, r(5) * 6.3, r(6) * 6.3], sp: 0.16 + Math.abs(r(7)) * 0.1, ox: 0, oy: 0, vx: 0, vy: 0, va: 0, a: 0 };
+  });
+  for (let it = 0; it < 200; it++) {               // ease bigger pieces apart just enough that none overlap (captions included), staying in her frame
+    let moved = false;
+    for (let i = 0; i < FLOAT.length; i++) for (let j = i + 1; j < FLOAT.length; j++) {
+      const A = FLOAT[i], B = FLOAT[j], gap = 46;
+      const ox = (A.w + B.w) / 2 + gap - Math.abs(A.cx - B.cx), oy = (A.h + B.h) / 2 + gap + 34 - Math.abs(A.cy - B.cy);
+      if (ox > 0 && oy > 0) { moved = true;
+        if (ox < oy) { const d = ox / 2 * Math.sign(B.cx - A.cx || 1); A.cx -= d; B.cx += d; } else { const d = oy / 2 * Math.sign(B.cy - A.cy || 1); A.cy -= d; B.cy += d; } }
+    }
+    FLOAT.forEach(f => { f.cx = Math.max(f.w / 2 + 40, Math.min(GW - f.w / 2 - 40, f.cx)); f.cy = Math.max(f.h / 2 + 150, Math.min(GH - f.h / 2 - 70, f.cy)); });
+    if (!moved) break;
+  }
+  const tileBtns = ART.map((a, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tilelink'; b.hidden = true;
+    b.setAttribute('aria-label', a.title + ', details'); tilesEl.appendChild(b);
+    const im = document.createElement('img'); im.src = 'art/' + a.id + '.jpg'; im.alt = ''; im.draggable = false;
+    const cap = document.createElement('span'); cap.textContent = a.title; b.append(im, cap);
+    b.addEventListener('click', e => openArt(i, b, e.detail === 0));   // opens on click; keyboard opens move focus into the slide   // keyboard opens move focus into the slide
+    return b;
+  });
+  let openIdx = -1, openFrom = null, dAnim = 0;
+  // the piece itself zooms up from where it floats to its spot on the slide; the pond blurs behind it and the words settle in
+  let zoomFrom = null;
+  function setP(p) {
+    detail.style.setProperty('--p', p);
+    if (!zoomFrom) { dImg.style.transform = ''; return; }
+    const pr = detail.getBoundingClientRect(), L = dImg.offsetLeft, T = dImg.offsetTop, W = dImg.offsetWidth, H = dImg.offsetHeight;
+    const fx = zoomFrom.left - pr.left, fy = zoomFrom.top - pr.top, q = 1 - p;
+    dImg.style.transform = `translate(${(fx - L) * q}px, ${(fy - T) * q}px) scale(${1 + (zoomFrom.width / W - 1) * q}, ${1 + (zoomFrom.height / H - 1) * q})`;
+  }
+  function animR(from, to, ms, done) {
+    cancelAnimationFrame(dAnim); const t0 = performance.now();
+    const step = () => { const u = Math.min(1, (performance.now() - t0) / ms), e = from < to ? 1 - Math.pow(1 - u, 3) : u * u * (3 - 2 * u);
+      setP(from + (to - from) * e); if (u < 1) dAnim = requestAnimationFrame(step); else if (done) done(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setP(to); if (done) done(); return; }
+    dAnim = requestAnimationFrame(step);
+  }
+  function openArt(i, from, kb) {
+    if (page !== 'art' || camAnim) return;
+    const a = ART[i]; openIdx = i; openFrom = from;
+    dTitle.textContent = a.title; const ti = document.getElementById('dtimg'); ti.src = 'art/title-' + a.id + '.png';
+    ti.style.width = (TW[a.id] / 1.4 / 1152 * 100) + '%';   // h2 is 80% of the frame (1152 px)
+    dMeta.innerHTML = ''; a.meta.forEach(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; dMeta.append(dt, dd); });
+    dDesc.textContent = a.desc;
+    const [x, y, w, h] = a.photo; dImg.src = 'art/' + a.id + '.jpg'; dImg.alt = a.title;
+    Object.assign(dImg.style, { left: x / 14.4 + '%', top: y / 10.24 + '%', width: w / 14.4 + '%', height: h / 10.24 + '%' });
+    detail.querySelector('.info').style.setProperty('--dy', (a.meta.length > 3 ? 372 : 388 - (a.desc.length > 620 ? 13 : 0)) / 10.24 + '%');
+    zoomFrom = from.querySelector('img').getBoundingClientRect(); from.style.visibility = 'hidden';   // the piece lifts off the water
+    detail.hidden = false; setP(0); animR(0, 1, 560);
+    if (kb) document.getElementById('dshut').focus({ preventScroll: true });
+  }
+  function closeArt() {
+    if (openIdx < 0) return; const from = openFrom; openIdx = -1;
+    const kb = detail.contains(document.activeElement);
+    if (from) zoomFrom = from.querySelector('img').getBoundingClientRect();      // and settles back where it now floats
+    animR(1, 0, 440, () => { detail.hidden = true; if (from) from.style.visibility = ''; if (kb && from && !from.hidden) from.focus({ preventScroll: true }); });
+  }
+  document.getElementById('dshut').addEventListener('click', closeArt);
+  detail.addEventListener('click', e => { if (e.target === detail) closeArt(); });
+  detail.addEventListener('wheel', () => closeArt(), { passive: true });
+  addEventListener('keydown', e => { if (e.key === 'Escape') closeArt(); });
+  function syncUI() {
+    backBtn.hidden = page === 'home' && scrollY < innerHeight * 0.5;
+    note.hidden = page !== 'home';
+  }
+  // DOM hotspots ride on the pond: world px -> position over the canvas
+  function place(el, wx, wy, w, h, show) {
+    el.hidden = !show; if (!show) return;
+    const r = canvas.getBoundingClientRect(), k = r.width / 1440 * camZ;
+    el.style.left = ((wx - camX) * k) + 'px'; el.style.top = ((wy - cam) * k) + 'px'; el.style.width = (w * k) + 'px'; el.style.height = (h * k) + 'px';
+  }
+  function placeUI() {
+    const P = PADS[1], pc = A(1250, 845);
+    place(followBtn, pc[0] - 205 * AS + P.dx, pc[1] - 205 * AS + P.dy, 410 * AS, 410 * AS, page === 'home' && cam > AY * 0.6);
+    followBtn.style.transform = `rotate(${P.a}rad)`;
+    const q = Wk(1155, 226);
+    place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
+    floatPieces();
+  }
+  let floatT = null;
+  function floatPieces() {
+    const show = page === 'art' || camX + 1440 / camZ > GX;     // the pond is there whenever the view reaches the art page
+    const now = performance.now() / 1000, dt = floatT === null ? 0 : Math.min(0.05, now - floatT); floatT = now;
+    const heads = show && running ? KOI.map(k => k.tp && k.tp.length ? add(trackAt(k, k.dist).p, [koiDX, 0]) : null) : [];
+    const r = canvas.getBoundingClientRect(), k = r.width / 1440 * camZ;
+    FLOAT.forEach((f, i) => {
+      const b = tileBtns[i]; b.hidden = !show; if (!show) return;
+      const t = running ? now : 0;
+      const dx = Math.sin(t * f.sp + f.ph[0]) * 9 + Math.sin(t * f.sp * 0.43 + f.ph[1]) * 6;     // slow wander on the current
+      const dy = Math.cos(t * f.sp * 0.8 + f.ph[1]) * 7 + Math.sin(t * f.sp * 0.31 + f.ph[2]) * 5;
+      const w = Gk(f.cx + dx, f.cy + dy);
+      if (dt) {                                       // a koi gliding underneath pushes the piece aside and spins it a touch; it eases back
+        for (const hd of heads) { if (!hd) continue;
+          const vx = w[0] + f.ox - hd[0], vy = w[1] + f.oy - hd[1], d = Math.hypot(vx, vy), R = (Math.max(f.w, f.h) * 0.5 + 120) * AS;
+          if (d < R && d > 1) { const s = (1 - d / R) * 260; f.vx += vx / d * s * dt; f.vy += vy / d * s * dt; } }
+        f.vx += (-f.ox * 2.2 - f.vx * 2.4) * dt; f.vy += (-f.oy * 2.2 - f.vy * 2.4) * dt; f.va += (-f.a * 2.5 - f.va * 2.8) * dt;
+        f.ox += f.vx * dt; f.oy += f.vy * dt; f.a += f.va * dt;
+        const m = Math.hypot(f.ox, f.oy), mx = 46 * AS; if (m > mx) { f.ox *= mx / m; f.oy *= mx / m; }
+        f.a = Math.max(-0.08, Math.min(0.08, f.a));
+      }
+      const sx = (w[0] + f.ox - camX) * k, sy = (w[1] + f.oy - cam) * k;
+      b.style.width = (f.w * AS * k) + 'px';
+      b.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`; b.style.fontSize = (16 * AS * k) + 'px';   // floats, never turns
+    });
+    if (show && running && page === 'art') dirty = true;
+  }
+  const artMax = () => Math.max(0, GW * AS - 1440 / ZA), artK = () => (canvas.getBoundingClientRect().width || innerWidth) / 1440 * ZA;   // world px of sideways glide, screen px per world px
+  function scrollState() {
+    const y = scrollY, p = Math.max(0, Math.min(1, y / Math.max(1, innerHeight)));
+    const e = 1 - Math.pow(1 - p, 2.2);
+    if (page === 'art') { artX = Math.min(artMax(), y / artK()); lastScrollT = performance.now(); dirty = true; return; }
+    if (page !== 'home') return;
+    const z = 1 + (Z - 1) * e;                        // pull back as you scroll, mostly in the first half
+    home = [720 - 720 / z, p * AY, z];
+    const dy = y - lastY; lastY = y;
+    note.textContent = p > 0.9 ? '' : 'scroll down'; backBtn.hidden = p < 0.5;
+    if (dy > 0 && p > 0.03) retarget('about', running);
+    else if (dy < 0 && p < 0.97) retarget('landing', running);
+    else if (!running) retarget(p > 0.5 ? 'about' : 'landing', false);
+    dirty = true;
+  }
+  let dirty = true;
+  addEventListener('scroll', scrollState, { passive: true });
+  // scrolling back left past the first pieces of the art pond carries you upstream to "currently"
+  { let push = 0, pushT = 0, ty = null;
+    const atStart = () => page === 'art' && openIdx < 0 && scrollY <= 2;
+    const nudge = d => { const now = performance.now(); if (now - pushT > 700) push = 0; pushT = now;
+      if (d < 0 && atStart()) { push -= d; if (push > 260) { push = 0; go('works', true); } } else if (d > 0) push = 0; };
+    addEventListener('wheel', e => { const d = e.deltaY + e.deltaX; nudge(e.deltaMode ? d * 40 : d); }, { passive: true });   // a sideways swipe left counts too
+    addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, { passive: true });
+    addEventListener('touchmove', e => { if (ty == null) return; const y = e.touches[0].clientY; nudge((ty - y) * 1.5); ty = y; }, { passive: true });
+    addEventListener('keydown', e => { if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) nudge(-140); });
+  }
+  addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse = [e.clientX, e.clientY]; if (page === 'art') dirty = true; } }, { passive: true });
+  document.addEventListener('pointerleave', () => { mouse = null; });
+  scrollState(); syncUI(); stepCam(0);
+  { const h = location.hash; if (h === '#currently' || h === '#fine-art') { go('works', false); if (h === '#fine-art') go('art', false); camAnim = null; } }
+  addEventListener('resize', () => { fitRes(); dirty = true; });
+  function frame(now) {
+    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
+    if (running || t === 0 || dirty) { dirty = false;
+      t += dt; stepCam(dt); placeUI();
+      { const tx = 0;                                 // the koi keep to their own path between the paintings
+        koiDX += (tx - koiDX) * (dt ? 1 - Math.exp(-dt * 3) : 1); if (Math.abs(tx - koiDX) > 0.5) dirty = true; }
+      const koiCam = on => gl.uniform3f(uCam, camX - (on ? koiDX : 0), cam - (on ? koiDY : 0), camZ);
+      gl.useProgram(prog); koiCam(false);
+      gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      const [orange, painted] = KOI;
+      for (const k of KOI) pose(k, t, running ? dt : 0);
+      beginWater(t);
+      stepLeaves(running ? dt : 0, t); stepPad(running ? dt : 0);
+      if (LAYER.base && !LAYER.pond) LAYER.pond = LAYER.base;
+      drawLayer('pond', 0);                            // one big pond: her water runs on under every page and every transition
+      drawLayer('base', 0); drawLayer('letter', 3);
+      drawLayer('aboutWater', 0); drawLayer('worksWater', 0); drawLayer('artWater', 0);
+      drawLeaves(t);                                   // leaves sit under the koi
+      drawPad(t, PADS[0]);                             // so does her first lily pad
+      gl.useProgram(prog); koiCam(true); draw(painted); koiCam(false);
+      drawLayer('texture', 1); drawLayer('lines', 2);
+      drawLayer('photo', 3);                           // as in Figma: painted koi under the photo, orange koi over it
+      drawPad(t, PADS[1]);                             // her second pad sits over the photo and painted koi, under the orange
+      gl.useProgram(prog); koiCam(true); draw(orange); koiCam(false);
+      drawLayer('aboutText', 3);                       // all About text sits above both koi (and above her overlay)
+      drawLayer('worksTop', 3); drawLayer('artTop', 3);   // the koi swim under her pads and under the artwork
+    }
+    if (camAnim && camAnim.snap) {                    // freeze the dive's last frame over the canvas, then swap the pond underneath
+      const r = canvas.getBoundingClientRect(), A0 = camAnim, sp = [(A0.p0[0] - camX) * camZ / 1440 * 100, (A0.p0[1] - cam) * camZ / 1024 * 100];
+      snapEl.width = canvas.width; snapEl.height = canvas.height;
+      snapEl.getContext('2d').drawImage(canvas, 0, 0);
+      snapEl.style.transformOrigin = sp[0] + '% ' + sp[1] + '%'; snapEl.style.opacity = '1'; snapEl.style.transform = 'none'; snapEl.hidden = false;
+      A0.snap = false; A0.cut = A0.t; A0.onMid(); dirty = true;
+    }
+    if (window.__grab) { window.__shot = canvas.toDataURL('image/png'); window.__grab = false; }   // used only to export a still
+    requestAnimationFrame(frame);
+  }
+  const LAYER_SRC = { base: 'water-base.png?v=4', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=1', lines: 'water-lines.png?v=1',
+    aboutWater: 'about-water.png?v=2', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=4', aboutText: 'about-text.png?v=4',
+    worksWater: 'works-water.png?v=1', worksTop: 'works-top.png?v=1', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
+  Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
+  let loaded = 0;
+  KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });
+})();
+</script>
+
+<script>
+/* doodled bubbles: we look DOWN into the pond, so a bubble rises toward us: it starts small and deep where the cursor passed, swells as it
+   nears the surface (drifting only a little with the current), then pops at the surface */
+(() => {
+  const cv = document.getElementById('bub'), cx = cv.getContext('2d');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { cv.hidden = true; return; }
+  const B = []; let last = null, dpr = 1, W = 0, H = 0, on = false;
+  const fit = () => { const r = cv.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); };
+  addEventListener('resize', fit); fit();
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (x < 0 || y < 0 || x > r.width || y > r.height) { last = null; return; }
+    const s = r.width / 1440;
+    if (last && Math.hypot(x - last[0], y - last[1]) < 22 * s + 6) return;
+    last = [x, y];
+    const n = Math.random() < 0.35 ? 2 : 1;
+    for (let i = 0; i < n && B.length < 60; i++) {
+      const k = 9; const off = [];                       // each bubble keeps its own lumpy outline, like a pen circle
+      for (let j = 0; j < k; j++) off.push(rnd(-0.11, 0.11));
+      B.push({ x: x + rnd(-8, 8) * s, y: y + rnd(-4, 4) * s, r: rnd(4, i ? 7 : 12) * s + 1.5, vx: rnd(-5, 5), vy: rnd(-5, 5),
+        ph: rnd(0, 6.28), rot: rnd(0, 6.28), gap: rnd(0, 6.28), off, age: 0, life: rnd(1.4, 2.4) });
+    }
+    if (!on) { on = true; prev = performance.now(); requestAnimationFrame(tick); }
+  }, { passive: true });
+  // a closed wobbly loop through the bubble's offsets, slightly overshooting where the pen started (doodle look)
+  function doodle(b, r, boil) {
+    const k = b.off.length, pts = [];
+    for (let j = 0; j <= k + 1; j++) {
+      const t = b.rot + j / k * 6.2832, o = b.off[j % k] + boil * Math.sin(j * 2.3 + b.ph);
+      pts.push([b.x + Math.cos(t) * r * (1 + o), b.y + Math.sin(t) * r * (1 + o)]);
+    }
+    cx.beginPath(); cx.moveTo((pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2);
+    for (let j = 1; j < pts.length - 1; j++) cx.quadraticCurveTo(pts[j][0], pts[j][1], (pts[j][0] + pts[j + 1][0]) / 2, (pts[j][1] + pts[j + 1][1]) / 2);
+    cx.stroke();
+  }
+  let prev = performance.now(), frame = 0;
+  function tick(now) {
+    const dt = Math.min(0.05, (now - prev) / 1000); prev = now; frame++;
+    const boil = Math.floor(now / 140) % 3 * 0.025;     // the line "boils" a little, like hand-drawn animation
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+    cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (let i = B.length - 1; i >= 0; i--) {
+      const b = B[i]; b.age += dt; if (b.age > b.life + 0.2) { B.splice(i, 1); continue; }
+      b.vx *= 0.99; b.vy *= 0.99;                           // no screen-up gravity: rising is toward the viewer, so they only drift with the water
+      b.x += (b.vx + Math.sin(b.ph + b.age * 3) * 3) * dt; b.y += (b.vy + Math.cos(b.ph + b.age * 2.6) * 3) * dt;
+      const u = b.age / b.life, pop = u > 1 ? (b.age - b.life) / 0.2 : 0;
+      const e = Math.min(1, u); const r = b.r * (0.25 + 0.95 * e * e * (3 - 2 * e));   // swells as it comes up toward the surface
+      const a = 0.35 + 0.65 * Math.min(1, u * 1.4);       // faint while deep, crisp at the surface
+      cx.strokeStyle = `rgb(240 252 250 / ${0.85 * a})`;
+      if (!pop) {
+        cx.lineWidth = Math.max(1.1, r * 0.13); doodle(b, r, boil);
+        // little shine tick inside, top-left, drawn as two short strokes
+        cx.lineWidth = Math.max(1, r * 0.12);
+        cx.beginPath(); cx.arc(b.x, b.y, r * 0.58, 3.6, 4.5); cx.stroke();
+        if (r > 6) { cx.beginPath(); cx.arc(b.x - r * 0.42, b.y - r * 0.1, Math.max(0.6, r * 0.05), 0, 6.283); cx.stroke(); }
+      } else {
+        // pop: four tiny dashes flying out
+        cx.lineWidth = Math.max(1, b.r * 0.12); cx.strokeStyle = `rgb(240 252 250 / ${0.85 * (1 - pop)})`;
+        for (let j = 0; j < 4; j++) { const t = b.gap + j * 1.5708, d0 = b.r * (0.9 + pop * 0.8), d1 = d0 + b.r * 0.45;
+          cx.beginPath(); cx.moveTo(b.x + Math.cos(t) * d0, b.y + Math.sin(t) * d0); cx.lineTo(b.x + Math.cos(t) * d1, b.y + Math.sin(t) * d1); cx.stroke(); }
+      }
+    }
+    if (B.length) requestAnimationFrame(tick); else { on = false; cx.clearRect(0, 0, W, H); }
+  }
+})();
+</script>
