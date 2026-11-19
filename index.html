@@ -470,12 +470,12 @@
   const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
   const aP = gl.getAttribLocation(prog, 'p'), aUV = gl.getAttribLocation(prog, 'uv');
   gl.uniform2f(gl.getUniformLocation(prog, 'res'), W, H);
-  { const hx = AX + 1009 * AS, hy = AY + 60 * AS;
+  { const hx = AX + 542 * AS, hy = AY + 204 * AS;
     gl.uniform4f(gl.getUniformLocation(prog, 'ovr'), AX, AY, AX + 1440 * AS, AY + 1024 * AS);
-    gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 431 * AS, hy + 671 * AS);
+    gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 642 * AS, hy + 830 * AS);
     gl.uniform2f(gl.getUniformLocation(prog, 'ovrY'), AY - 300, AY + 300);
     gl.uniform1i(gl.getUniformLocation(prog, 't'), 0); gl.uniform1i(gl.getUniformLocation(prog, 'halo'), 1); }
-  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=3'; }   // fades in with the About water, no hard edge
+  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=4'; }   // fades in with the About water, no hard edge
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
   const idx = []; for (let i = 0; i < N-1; i++) for (let j = 0; j < M-1; j++) { const a = i*M+j, b = a+1, c = a+M, d = c+1; idx.push(a,c,b, b,c,d); }
@@ -547,7 +547,7 @@
     gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
-    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [AX,AY,1440*AS,1024*AS], photo: [...A(1009,60),431*AS,671*AS] };
+    aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [AX,AY,1440*AS,1024*AS], photo: [...A(542,204),642*AS,830*AS] };   // About, laid out on the rule of thirds: headline sits on the top third line, her face on the right-third crossing, text ends on the lower third line
   // no edge between the sections: the Landing water runs on below its frame and the About water fades in over it
   const BLEND = 300, NOFADE = [-1e6, -1e6, 1e6, 1e6];
   RECT.pond = RECT.base;
@@ -649,7 +649,7 @@
   // and gives a small nudge and turn when a koi swims over it, then settles back.
   // her second pad sits in the bottom right corner (completed into a whole pad and nudged in so none of it is cut off); it moves even less
   const PADS = [{ c: A(186.5, 251 + 203), w: 373 * AS, h: 406 * AS, src: 'lilypad.png?v=2', k: 1 },
-                { c: A(1218, 852), w: 456 * AS, h: 456 * AS, src: 'lilypad2-full.png', k: 0.5 }];
+                { c: A(1262, 840), w: 360 * AS, h: 360 * AS, src: 'lilypad2-full.png', k: 0.5 }];
   PADS.forEach(P => { Object.assign(P, { a: 0, va: 0, dx: 0, dy: 0, vx: 0, vy: 0, tex: null }); const im = new Image(); im.onload = () => { P.tex = texFrom(im); }; im.src = P.src; });
   const padPB = gl.createBuffer(), padPos = new Float32Array(8);
   function stepPad(dt) { PADS.forEach(P => stepOnePad(P, dt)); }
@@ -1003,8 +1003,8 @@
     el.style.left = ((wx - camX) * k) + 'px'; el.style.top = ((wy - cam) * k) + 'px'; el.style.width = (w * k) + 'px'; el.style.height = (h * k) + 'px';
   }
   function placeUI() {
-    const P = PADS[1], pc = A(1250, 845);
-    place(followBtn, pc[0] - 205 * AS + P.dx, pc[1] - 205 * AS + P.dy, 410 * AS, 410 * AS, page === 'home' && cam > AY * 0.6);
+    const P = PADS[1], pc = A(1262, 840);
+    place(followBtn, pc[0] - 165 * AS + P.dx, pc[1] - 165 * AS + P.dy, 330 * AS, 330 * AS, page === 'home' && cam > AY * 0.6);
     followBtn.style.transform = `rotate(${P.a}rad)`;
     const q = Wk(1222, 740);   // her "Fine Art" pad, bottom right on currently (Figma)
     place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
@@ -1127,7 +1127,6 @@
       drawLayer('base', 0); drawLayer('letter', 3);
       drawLayer('aboutWater', 0); drawLayer('worksWater', 0); drawLayer('artWater', 0);
       drawLeaves(t);                                   // leaves sit under the koi
-      drawPad(t, PADS[0]);                             // so does her first lily pad
       gl.useProgram(prog); koiCam(true); draw(painted); koiCam(false);
       drawLayer('texture', 1); drawLayer('lines', 2);
       drawLayer('photo', 3);                           // as in Figma: painted koi under the photo, orange koi over it
@@ -1147,7 +1146,7 @@
     requestAnimationFrame(frame);
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
-    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=4', aboutText: 'about-text.png?v=4',
+    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=5', aboutText: 'about-text.png?v=5',
     worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
