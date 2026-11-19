@@ -1104,9 +1104,9 @@
     if (window.__grab) { window.__shot = canvas.toDataURL('image/png'); window.__grab = false; }   // used only to export a still
     requestAnimationFrame(frame);
   }
-  const LAYER_SRC = { base: 'water-base.png?v=4', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=1', lines: 'water-lines.png?v=1',
-    aboutWater: 'about-water.png?v=2', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=4', aboutText: 'about-text.png?v=4',
-    worksWater: 'works-water.png?v=1', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
+  const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
+    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=4', aboutText: 'about-text.png?v=4',
+    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
   KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });
