@@ -67,7 +67,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 
-<script src="scenes.js?v=5"></script>
+<script src="scenes.js?v=6"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
@@ -128,7 +128,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       return { s, x: xa + (xb - xa) * smooth(p), y: WH / 2, p };
     }
     const s0 = Math.min(VW / WW, VH / WH) * 0.97;
-    const s1 = Math.max(VH / 3400, VW / WW);
+    const s1 = Math.max(VH / 3800, VW / WW);          // tall enough to keep all three rows of her pieces in view
     const z = smooth(clamp(p / 0.14, 0, 1)), pan = smooth(clamp((p - 0.1) / 0.9, 0, 1));
     const R = S.ir ? Math.max(WW, S.ir[0] + S.ir[2] - 120) : WW;              // run on to the far edge of her last pad, even where it hangs past the frame
     const half = VW / 2 / s1, xa = half, xb = Math.max(half, R - half);
