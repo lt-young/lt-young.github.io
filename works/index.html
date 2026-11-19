@@ -185,7 +185,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   let flowK = 1;                                  // the streaks fade while a piece is up full screen
   function drawFlow(run, dt) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
-    if (flowK < 0.01) return;
+    if (flowK < 0.01 || !S.bow) return;
     ctx.save(); ctx.globalAlpha = flowK;
     const [fx0, fy0] = toScreen(0, 0), [fx1, fy1] = toScreen(WW, WH);
     ctx.beginPath(); ctx.rect(fx0 * dpr, fy0 * dpr, (fx1 - fx0) * dpr, (fy1 - fy0) * dpr); ctx.clip();
@@ -607,16 +607,18 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     const run = !still;
+    requestAnimationFrame(frame);                 // first, so one bad frame can never stop the pond
     if (run) T += dt;
-    stepCam(dt);
-    flowK += ((zoomR ? 0 : 1) - flowK) * (1 - Math.exp(-dt * 6));
-    applyCam();
-    drawFlow(run, dt);
-    if (run) kt += dt;
-    stepLeaves(run ? dt : 0);
-    for (const k of KOI) if (k.ready) pose(k, kt, run ? dt : 0);
-    drawKoi();
-    requestAnimationFrame(frame);
+    try {
+      stepCam(dt);
+      flowK += ((zoomR ? 0 : 1) - flowK) * (1 - Math.exp(-dt * 6));
+      applyCam();
+      drawFlow(run, dt);
+      if (run) kt += dt;
+      stepLeaves(run ? dt : 0);
+      for (const k of KOI) if (k.ready) pose(k, kt, run ? dt : 0);
+      drawKoi();
+    } catch (er) { if (!frame.warned) { frame.warned = true; console.error(er); } }
   }
   resize();
   { const h = location.hash.slice(1), first = SCENES[h] && h !== 'works' ? h : 'works';
