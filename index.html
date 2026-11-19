@@ -188,6 +188,7 @@
     <canvas id="snap" aria-hidden="true" hidden></canvas>
     <button id="follow" class="padlink" type="button" aria-label="follow the current" hidden></button>
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
+    <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
   </div>
   <div class="chrome">
     <div id="pull" aria-hidden="true"><i></i></div>
@@ -327,7 +328,8 @@
   }
   const OVL = OV;                      // the Landing oval as a loop
   OVL.p.forEach(q => q);
-  const LOOPS = { landing: OVL, about: ABOUT_OVAL, works: WORKS_OVAL, art: ART_OVAL };
+  const WORKS_PAD = Wk(1156, 225);           // her "Works" pad, top right on currently (Figma)
+  const LOOPS = { landing: OVL, about: ABOUT_OVAL, works: WORKS_OVAL, art: ART_OVAL, worksPad: superLoop(...WORKS_PAD, 480, 480, 1) };
   KOI.forEach(k => {
     k.aboutLoop = ABOUT_OVAL;
     k.aboutScale = 1;                   // same size everywhere; the camera does the shrinking
@@ -851,6 +853,19 @@
     const tg = camTarget();
     if (camAnim && camAnim.zoom) {                     // dive into the fine art pad; it keeps growing as it melts into the art page
       const A0 = camAnim; A0.t += dt;
+      if (A0.wait) {                                  // the koi swim over to the pad first; the dive starts once they're circling it
+        const near = KOI.every(k => !k.tp || len(sub(trackAt(k, k.dist).p, A0.p0)) < 1000);
+        if (near || A0.t > 2.6) { A0.wait = false; A0.t = 0; A0.c0 = [camX + 720 / camZ, cam + 512 / camZ]; }
+        dirty = true; return;
+      }
+      if (A0.href) {                                  // dive into the Works pad, then open the Works pond out of its own Works pad
+        const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u) * 0.35 + u * u * u * 0.65;
+        const z = Z * Math.pow(A0.zoom, e), f = (1 / Z - 1 / z) / (1 / Z - 1 / (Z * A0.zoom));
+        const c = [A0.c0[0] + (A0.p0[0] - A0.c0[0]) * f, A0.c0[1] + (A0.p0[1] - A0.c0[1]) * f];
+        camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
+        if (u >= 1 && !A0.gone) { A0.gone = true; location.href = A0.href; }
+        dirty = true; return;
+      }
       if (!A0.cut) {
         const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u) * 0.35 + u * u * u * 0.65;   // gathers speed as it plunges
         const z = Z * Math.pow(A0.zoom, e);
@@ -935,7 +950,17 @@
     if (stepT < IN) dirty = true;
   }
   window.__about = () => [aboutStep, stepK.map(v => +v.toFixed(2)), leafCarry.toFixed(2)];
-  artPad.addEventListener('click', () => go('art', true));      // the koi swim off to the right and the view follows them downstream to the art pond
+  artPad.addEventListener('click', () => go('art', true));
+  // her Works pad: the koi swim over and circle it, then the view dives in and the Works pond opens
+  const worksPad = document.getElementById('workspad');
+  worksPad.addEventListener('click', () => {
+    if (camAnim || page !== 'works') return;
+    retarget('worksPad', running);
+    const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    camAnim = { zoom: 6, dur: quick ? 0.05 : 1.25, t: 0, p0: WORKS_PAD, wait: running && !quick, href: 'works/', c0: [camX + 720 / camZ, cam + 512 / camZ] };
+    dirty = true;
+  });
+  addEventListener('pageshow', e => { if (e.persisted && camAnim && camAnim.href) { camAnim = null; retarget('works', false); dirty = true; } });   // back from the Works pond: settle on currently again      // the koi swim off to the right and the view follows them downstream to the art pond
   // jump anywhere: home (landing) and About are scroll spots on the first page; currently and fine art slide across
   function navTo(spot, step) {
     if (spot === 'works' || spot === 'art') return go(spot, true);
@@ -1051,6 +1076,7 @@
     place(followBtn, fr[0], fr[1], fr[2], fr[3], page === 'home' && cam > AY * 0.6 && aboutStep === 3 && stepK[3] > 0.5);
     const q = Wk(1222, 740);   // her "Fine Art" pad, bottom right on currently (Figma)
     place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
+    place(worksPad, WORKS_PAD[0] - 160 * AS, WORKS_PAD[1] - 160 * AS, 320 * AS, 320 * AS, page === 'works' && !camAnim);
     floatPieces();
   }
   let floatT = null;
