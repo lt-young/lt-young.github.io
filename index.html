@@ -8,7 +8,7 @@
 <link rel="icon" href="nav-icon.png" type="image/png">
 <meta name="theme-color" content="#0a6f80">
 <style>
-  @font-face { font-family: "Tritopani"; src: url(fonts/tritopani.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Astoria"; src: url(fonts/astoria.woff2) format("woff2"); font-display: swap; }
   @font-face { font-family: "Melodrame"; src: url(fonts/melodrame.woff2) format("woff2"); font-display: swap; }
   /* Full-bleed pond: the painted water fills the screen, the two koi circle each other. */
   :root {
@@ -35,11 +35,11 @@
   .lettering { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; pointer-events: none; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #c, #snap { inset: auto; }   /* placed by the script so they cover the whole window */
-  /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Tritopani, top left; it takes you home */
+  /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Astoria, top left; it takes you home */
   #brand {
     position: absolute; top: 1%; left: 1.2%; z-index: 2; display: flex; align-items: flex-start; gap: calc(5 / 1440 * var(--fw));
     border: 0; background: none; padding: 4px 6px; border-radius: 8px; color: var(--ink);
-    font: 400 calc(54 / 1440 * var(--fw)) / 1 "Tritopani", cursive; letter-spacing: 0; white-space: nowrap;
+    font: 400 calc(54 / 1440 * var(--fw)) / 1 "Astoria", cursive; letter-spacing: 0; white-space: nowrap;
     text-shadow: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 8px rgb(0 40 50 / 0.35);
   }
   #brand span { padding-top: calc(3 / 1440 * var(--fw)); }
@@ -76,7 +76,7 @@
   /* "move upstream" is written on the water like her page titles, with a little ripple under it */
   #back {
     border: 0; background: none; padding: 4px 6px 12px; border-radius: 6px; position: relative;
-    font: 400 calc(30 / 1440 * var(--fw)) / 1 "Tritopani", cursive; letter-spacing: 0; color: var(--ink);
+    font: 400 calc(30 / 1440 * var(--fw)) / 1 "Astoria", cursive; letter-spacing: 0; color: var(--ink);
     text-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
   }
   #back[hidden] { display: none; }
@@ -102,7 +102,7 @@
   #menulist button {
     border: 0; background: none; padding: 0.2cqw 0.3cqw; border-radius: 6px; color: var(--ink); white-space: nowrap;
     display: flex; align-items: center; gap: 0.7cqw;
-    font: 400 calc(42 / 1440 * var(--fw)) / 1.2 "Tritopani", cursive; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+    font: 400 calc(42 / 1440 * var(--fw)) / 1.2 "Astoria", cursive; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
     animation: drift-in 0.5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms);
   }
   #menulist button::before {
@@ -122,7 +122,7 @@
   /* words written on a lily pad, like her pad labels; the pad itself turns a little on hover */
   .padlink {
     position: absolute; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink);
-    font-family: "Tritopani", cursive; font-weight: 400; letter-spacing: 0; line-height: 1.05; text-align: center;
+    font-family: "Astoria", cursive; font-weight: 400; letter-spacing: 0; line-height: 1.05; text-align: center;
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); cursor: pointer; transform-origin: 50% 50%;
   }
   .padlink[hidden] { display: none; }
@@ -153,8 +153,8 @@
     font-family: "Crimson Text", Georgia, serif;   /* the reading text stays a calm upright serif */
   }
   .detail[hidden] { display: none; }
-  .detail h2 { position: absolute; left: calc(100 / 1440 * 100%); top: calc(52 / 1024 * 100%); margin: 0; width: 80%; }
-  .detail h2 img { position: static; display: block; height: auto; box-shadow: none; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25)); }
+  .detail h2 { position: absolute; left: calc(120 / 1440 * 100%); top: calc(70 / 1024 * 100%); margin: 0; width: 80%;   /* the piece's name, written in Astoria */
+    font: 400 calc(92 / 1440 * 100cqw) / 1.15 "Astoria", cursive; letter-spacing: 0; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .detail h2, .detail .info, .detail .shut { opacity: var(--p, 0); translate: 0 calc((1 - var(--p, 0)) * 1.2cqw); }
   .detail img#dimg, .detail #dvid { transform-origin: 0 0; }
@@ -173,7 +173,7 @@
   .detail img { position: absolute; display: block; object-fit: cover; box-shadow: 0 calc(10 / 1440 * 100cqw) calc(30 / 1440 * 100cqw) rgb(0 20 10 / 0.35); }
   .detail .shut {
     position: absolute; left: calc(120 / 1440 * 100%); bottom: 2.4%; border: 0; background: none; padding: 8px 4px; border-radius: 6px;
-    font: 400 calc(44 / 1440 * 100cqw) / 1 "Tritopani", cursive; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+    font: 400 calc(44 / 1440 * 100cqw) / 1 "Astoria", cursive; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
   }
   .detail .shut::before { content: "\2190"; margin-right: 8px; font: 400 0.7em/1 var(--font-ui); vertical-align: 0.15em; }
 </style>
@@ -208,7 +208,7 @@
     </nav>
   </div>
     <section class="detail" id="detail" role="dialog" aria-modal="false" aria-labelledby="dtitle" hidden><div class="dframe">
-      <h2><img id="dtimg" alt=""><span id="dtitle" class="sr"></span></h2>
+      <h2 id="dtitle"></h2>
       <div class="info"><dl id="dmeta"></dl><h3>Description:</h3><p id="ddesc"></p></div>
       <img id="dimg" alt="">
       <video id="dvid" muted loop playsinline preload="none" hidden></video>
@@ -919,7 +919,7 @@
   const tilesEl = document.getElementById('tiles'), detail = document.getElementById('detail');
   const dTitle = document.getElementById('dtitle'), dMeta = document.getElementById('dmeta'), dDesc = document.getElementById('ddesc'), dImg = document.getElementById('dimg'), dVid = document.getElementById('dvid'), dExtra = document.getElementById('dextra');
   let dMain = dImg;
-  ART.forEach(a => { [a.id + '.jpg', 'title-' + a.id + '.png'].forEach(f => { const im = new Image(); im.src = 'art/' + f; }); });          // warm the cache so a slide opens with its picture
+  ART.forEach(a => { [a.id + '.jpg'].forEach(f => { const im = new Image(); im.src = 'art/' + f; }); });          // warm the cache so a slide opens with its picture
   const FLOAT = ART.map((a, i) => {                 // each piece's resting spot (her gallery layout, loosened a little), tilt and drift rhythm
     const r = n => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
     const w = 360 * 1.4, h = w * a.photo[3] / a.photo[2], cx = a.spot[0] + 180, cy = a.spot[1] + 180 * a.photo[3] / a.photo[2];   // her Figma spot, each piece 1.4x bigger around its own centre
@@ -967,8 +967,7 @@
   function openArt(i, from, kb) {
     if (page !== 'art' || camAnim) return;
     const a = ART[i]; openIdx = i; openFrom = from;
-    dTitle.textContent = a.title; const ti = document.getElementById('dtimg'); ti.src = 'art/title-' + a.id + '.png';
-    ti.style.width = (TW[a.id] / 1.4 / 1152 * 100) + '%';   // h2 is 80% of the frame (1152 px)
+    dTitle.textContent = a.title;
     dMeta.innerHTML = ''; a.meta.forEach(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; dMeta.append(dt, dd); });
     dDesc.textContent = a.desc;
     const [x, y, w, h] = a.photo, pos = ([x, y, w, h]) => ({ left: x / 14.4 + '%', top: y / 10.24 + '%', width: w / 14.4 + '%', height: h / 10.24 + '%' });
