@@ -58,6 +58,10 @@
   }
   button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .note { font-size: 16px; color: var(--ink-soft); }
+  /* the scroll threshold: a hairline that fills as you keep scrolling toward the next page, like a current pulling at you */
+  #pull { position: absolute; left: 50%; bottom: 3.2%; translate: -50% 0; width: 84px; height: 2px; border-radius: 1px; background: rgb(233 251 249 / 0.22); opacity: 0; pointer-events: none; z-index: 2; }
+  #pull.up { bottom: auto; top: 3.2%; }
+  #pull i { display: block; height: 100%; border-radius: inherit; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); }
   #spacer { display: none; }
   /* three-line menu, top corner */
   /* both live inside her frame: three bare lines top right, a small "move upstream" bottom right */
@@ -186,6 +190,7 @@
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
   </div>
   <div class="chrome">
+    <div id="pull" aria-hidden="true"><i></i></div>
     <div class="bar">
       <span class="note" id="note">scroll down</span>
     </div>
@@ -819,10 +824,12 @@
   const WATER_ORDER = ['base', 'aboutWater', 'worksWater', 'artWater'];   // draw order of the pages' water
   let ownerShown = 'base', ownerK = 0, koiDX = 0, koiDY = 0, koiT = [0, 0], lastScrollT = -1e9, mouse = null, lastY = 0, page = 'home', home = [0, 0, 1], artX = 0, camAnim = null;
   const pondH = () => frameRect().height || innerHeight;
+  let pullV = 0, pullDir = [0, 0];               // how far you've leaned toward the next page (0..1) and which way it lies
   function camTarget() {
-    if (page === 'works') return [WX, AY, Z];
-    if (page === 'art') return [GX + EXT[0] / ZA + artX, AY, ZA];   // the window's left edge starts at the art pond's own edge
-    return home;
+    const b = page === 'works' ? [WX, AY, Z] : page === 'art' ? [GX + EXT[0] / ZA + artX, AY, ZA] : home;   // art: the window's left edge starts at the art pond's own edge
+    if (!pullV) return b;
+    const m = pullV * 90 / b[2];                  // the view gives a little toward the next page before it lets go
+    return [b[0] + pullDir[0] * m, b[1] + pullDir[1] * m, b[2]];
   }
   function stepCam(dt) {
     const tg = camTarget();
@@ -1048,15 +1055,49 @@
   }
   let dirty = true;
   addEventListener('scroll', scrollState, { passive: true });
-  // scrolling back left past the first pieces of the art pond carries you upstream to "currently"
-  { let push = 0, pushT = 0, ty = null;
-    const atStart = () => page === 'art' && openIdx < 0 && scrollY <= 2;
-    const nudge = d => { const now = performance.now(); if (now - pushT > 700) push = 0; pushT = now;
-      if (d < 0 && atStart()) { push -= d; if (push > 260) { push = 0; go('works', true); } } else if (d > 0) push = 0; };
-    addEventListener('wheel', e => { const d = e.deltaY + e.deltaX; nudge(e.deltaMode ? d * 40 : d); }, { passive: true });   // a sideways swipe left counts too
-    addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, { passive: true });
-    addEventListener('touchmove', e => { if (ty == null) return; const y = e.touches[0].clientY; nudge((ty - y) * 1.5); ty = y; }, { passive: true });
-    addEventListener('keydown', e => { if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) nudge(-140); });
+  // ---- page threshold (like lusion.co): a page only changes after a deliberate scroll past a set amount. A hairline fills as you push and the
+  // view leans toward the next page; let go early and it springs back. One gesture moves one page: trackpad momentum can't skip ahead.
+  { const pullEl = document.getElementById('pull'), pullBar = pullEl.firstElementChild;
+    const NEED = 520;                               // px of scrolling (a few firm wheel notches or one long swipe)
+    let acc = 0, lastT = 0, lockUntil = 0, ty = null, raf = 0, relaxT = 0;
+    const spot = () => page === 'art' ? 'art' : page === 'works' ? 'works' : scrollY > innerHeight * 0.5 ? 'about' : 'landing';
+    const NEXT = { landing: ['about', [0, 1]], about: ['works', [1, 0]], works: ['art', [1, 0]] };
+    const PREV = { about: ['landing', [0, -1]], works: ['about', [-1, 0]], art: ['works', [-1, 0]] };
+    const free = d => page === 'art' && openIdx < 0 && (d > 0 || scrollY > 2);   // on the art pond the scroll glides along it; only its start edge is a threshold
+    function show() {
+      const k = Math.min(1, Math.abs(acc) / NEED);
+      pullEl.classList.toggle('up', acc < 0); pullEl.style.opacity = k ? String(0.35 + 0.65 * k) : '0'; pullBar.style.transform = `scaleX(${k})`;
+      pullV = k * k; dirty = true;
+    }
+    function relax() {                              // let go before the threshold: it eases back
+      raf = 0; const now = performance.now(); if (now - lastT < 160) { relaxT = now; raf = requestAnimationFrame(relax); return; }
+      acc *= Math.exp(-(now - relaxT) / 1000 * 9); relaxT = now; if (Math.abs(acc) < 4) acc = 0; show(); if (acc) raf = requestAnimationFrame(relax);
+    }
+    function push(d, e) {
+      const now = performance.now(), gap = now - lastT; lastT = now;
+      if (openIdx >= 0 || camAnim) { lockUntil = now + 250; return; }
+      if (now < lockUntil || (lockUntil && gap < 220)) { lockUntil = Math.max(lockUntil, now + 120); if (e && e.cancelable && !free(d)) e.preventDefault(); return; }   // still the same flick
+      lockUntil = 0;
+      if (free(d)) { if (acc) { acc = 0; show(); } return; }
+      if (e && e.cancelable) e.preventDefault();
+      const here = spot(), to = (d > 0 ? NEXT : PREV)[here];
+      if (!to) return;
+      if (Math.sign(d) !== Math.sign(acc)) acc = 0;
+      acc += d; pullDir = to[1]; show();
+      if (Math.abs(acc) >= NEED) { acc = 0; show(); lockUntil = now + 900; navTo(to[0]); return; }
+      if (!raf) raf = requestAnimationFrame(relax);
+    }
+    window.__pull = () => [acc, lockUntil - performance.now(), spot(), !!camAnim, openIdx];
+    addEventListener('wheel', e => { if (e.ctrlKey) return; const d = (e.deltaY || e.deltaX) * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? innerHeight : 1); push(d, e); }, { passive: false });
+    addEventListener('touchstart', e => { ty = e.touches[0].clientY; lockUntil = 0; lastT = 0; }, { passive: true });
+    addEventListener('touchmove', e => { if (ty == null) return; const y = e.touches[0].clientY; push((ty - y) * 1.6, e); ty = y; }, { passive: false });
+    addEventListener('touchend', () => { ty = null; });
+    addEventListener('keydown', e => {
+      if (openIdx >= 0 || camAnim || e.target.closest && e.target.closest('input, textarea')) return;
+      const dn = ['ArrowDown', 'PageDown', ' '].includes(e.key), up = ['ArrowUp', 'PageUp'].includes(e.key);
+      if (!dn && !up || free(dn ? 1 : -1)) return;
+      const to = (dn ? NEXT : PREV)[spot()]; if (to) { e.preventDefault(); navTo(to[0]); }
+    });
   }
   addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { mouse = [e.clientX, e.clientY]; if (page === 'art') dirty = true; } }, { passive: true });
   document.addEventListener('pointerleave', () => { mouse = null; });
