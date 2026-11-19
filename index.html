@@ -1,5 +1,12 @@
-<title>Koi Circle</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lauren Young</title>
+<meta name="description" content="Lauren Young: paintings, sculpture and design, in one painted koi pond.">
+<link rel="icon" href="nav-icon.png" type="image/png">
+<meta name="theme-color" content="#0a6f80">
 <style>
   @font-face { font-family: "Tritopani"; src: url(fonts/tritopani.woff2) format("woff2"); font-display: swap; }
   @font-face { font-family: "Melodrame"; src: url(fonts/melodrame.woff2) format("woff2"); font-display: swap; }
@@ -15,12 +22,19 @@
   }
   body { margin: 0; background: var(--pond); color: var(--ink); font-family: var(--font-ui); }
   .snap { height: 100dvh; }
-  .stage { position: fixed; inset: 0; display: grid; place-items: center; background: var(--pond); }
+  .stage { position: fixed; inset: 0; overflow: hidden; background: var(--pond); container-type: inline-size; }
+  /* her 1440 x 1024 frame stays whole in the middle of the window; the water canvas runs past it to every edge of the screen */
   .pond {
-    position: relative; width: min(100vw, calc(100dvh * 1440 / 1024)); aspect-ratio: 1440 / 1024; max-width: 100%;
+    position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+    width: min(100vw, calc(100dvh * 1440 / 1024)); aspect-ratio: 1440 / 1024;
   }
+  /* the name, menu and hints sit on the window's edges */
+  .chrome { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .chrome > * { pointer-events: auto; }
+  .dframe { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: min(100vw, calc(100dvh * 1440 / 1024)); aspect-ratio: 1440 / 1024; container-type: inline-size; }
   .lettering { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; pointer-events: none; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #c, #snap { inset: auto; }   /* placed by the script so they cover the whole window */
   /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Tritopani, top left; it takes you home */
   #brand {
     position: absolute; top: 1%; left: 1.2%; z-index: 2; display: flex; align-items: flex-start; gap: calc(7 / 1440 * 100cqw);
@@ -113,7 +127,7 @@
   /* art detail slides: her "Art / ..." frames. The tile opens into a close-up of a lily pad, like diving into it */
   .pond { container-type: inline-size; }
   /* the drifting pond: each piece floats loose on the water, drifts with the current and gets nudged when a koi passes under it */
-  #tiles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #tiles { position: absolute; inset: 0; overflow: visible; pointer-events: none; }   /* pieces float out to the window's edge */
   .tilelink {
     position: absolute; left: 0; top: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--ink);
     cursor: pointer; pointer-events: auto; transform-origin: 50% 50%; will-change: transform;
@@ -132,15 +146,19 @@
     position: absolute; inset: 0; z-index: 3; overflow: hidden; color: #fff;
     background: rgb(3 44 54 / calc(0.32 * var(--p, 0)));
     -webkit-backdrop-filter: blur(calc(16px * var(--p, 0))); backdrop-filter: blur(calc(16px * var(--p, 0)));   /* the pond stays, softly out of focus */
-    font-family: "Crimson Text", Georgia, serif; font-size: calc(19 / 1440 * 100cqw); line-height: 1.55;   /* the reading text stays a calm upright serif */
+    font-family: "Crimson Text", Georgia, serif;   /* the reading text stays a calm upright serif */
   }
   .detail[hidden] { display: none; }
   .detail h2 { position: absolute; left: calc(100 / 1440 * 100%); top: calc(52 / 1024 * 100%); margin: 0; width: 80%; }
   .detail h2 img { position: static; display: block; height: auto; box-shadow: none; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25)); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .detail h2, .detail .info, .detail .shut { opacity: var(--p, 0); translate: 0 calc((1 - var(--p, 0)) * 1.2cqw); }
-  .detail img#dimg { transform-origin: 0 0; }
-  .detail .info { position: absolute; left: calc(120 / 1440 * 100%); width: calc(520 / 1440 * 100%); top: var(--dy); }
+  .detail img#dimg, .detail #dvid { transform-origin: 0 0; }
+  .detail video { position: absolute; display: block; object-fit: cover; background: #000; box-shadow: 0 calc(10 / 1440 * 100cqw) calc(30 / 1440 * 100cqw) rgb(0 20 10 / 0.35); }
+  .detail video[hidden], .detail img[hidden] { display: none; }
+  .detail #dextra { opacity: var(--p, 0); border-radius: 2px; }
+  .tilelink video { display: block; width: 100%; height: auto; border-radius: 3px; filter: drop-shadow(0 0.9cqw 1.1cqw rgb(0 34 44 / 0.42)); }
+  .detail .info { font-size: calc(19 / 1440 * 100cqw); line-height: 1.55; position: absolute; left: calc(120 / 1440 * 100%); width: calc(520 / 1440 * 100%); top: var(--dy); }
   .detail dl { margin: 0 0 calc(16 / 1440 * 100cqw); font-size: calc(22 / 1440 * 100cqw); line-height: 1.4; }
   .detail dt { display: inline; font-weight: 600; }
   .detail dt::after { content: ": "; }
@@ -157,6 +175,8 @@
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=Shippori+Mincho:wght@500&display=swap">
 
+</head>
+<body>
 <div class="stage">
   <div class="pond" id="pond"><canvas id="c" width="1440" height="1024" role="img" aria-label="welcome to my Current, with two koi swimming an oval around the words. Scrolling down follows the koi into the About section: hi, I'm Lauren"></canvas>
     <div id="tiles" aria-label="fine art pieces"></div>
@@ -164,12 +184,8 @@
     <canvas id="snap" aria-hidden="true" hidden></canvas>
     <button id="follow" class="padlink" type="button" aria-label="follow the current" hidden></button>
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
-    <section class="detail" id="detail" role="dialog" aria-modal="false" aria-labelledby="dtitle" hidden>
-      <h2><img id="dtimg" alt=""><span id="dtitle" class="sr"></span></h2>
-      <div class="info"><dl id="dmeta"></dl><h3>Description:</h3><p id="ddesc"></p></div>
-      <img id="dimg" alt="">
-      <button class="shut" id="dshut" type="button">fine art</button>
-    </section>
+  </div>
+  <div class="chrome">
     <div class="bar">
       <span class="note" id="note">scroll down</span>
     </div>
@@ -186,6 +202,14 @@
       </div>
     </nav>
   </div>
+    <section class="detail" id="detail" role="dialog" aria-modal="false" aria-labelledby="dtitle" hidden><div class="dframe">
+      <h2><img id="dtimg" alt=""><span id="dtitle" class="sr"></span></h2>
+      <div class="info"><dl id="dmeta"></dl><h3>Description:</h3><p id="ddesc"></p></div>
+      <img id="dimg" alt="">
+      <video id="dvid" muted loop playsinline preload="none" hidden></video>
+      <video id="dextra" muted loop playsinline controls preload="none" hidden></video>
+      <button class="shut" id="dshut" type="button">fine art</button>
+    </div></section>
 </div>
 <main aria-hidden="true"><div class="snap"></div><div class="snap"></div><div id="spacer"></div></main>
 
@@ -195,10 +219,16 @@
   const canvas = document.getElementById('c');
   const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
   let RES = 1.5;
+  const pondEl = document.getElementById('pond'), stageEl = pondEl.parentElement;
+  const EXT = [0, 0];   // how far the window reaches past her frame on each side, in frame px
+  const frameRect = () => pondEl.getBoundingClientRect();
   function fitRes() {
-    const css = canvas.getBoundingClientRect().width || W;
-    RES = window.__res || Math.max(1, Math.min(2.5, (devicePixelRatio || 1) * css / W));
-    canvas.width = Math.round(W * RES); canvas.height = Math.round(H * RES);
+    const pr = frameRect(), sr = stageEl.getBoundingClientRect(), css = pr.width || W, s = css / W;
+    EXT[0] = Math.max(0, (pr.left - sr.left) / s); EXT[1] = Math.max(0, (pr.top - sr.top) / s);
+    RES = window.__res || Math.max(1, Math.min(2.5, (devicePixelRatio || 1) * s));
+    canvas.width = Math.round((W + 2 * EXT[0]) * RES); canvas.height = Math.round((H + 2 * EXT[1]) * RES);
+    for (const el of [canvas, document.getElementById('snap')]) Object.assign(el.style, {
+      left: -(pr.left - sr.left) + 'px', top: -(pr.top - sr.top) + 'px', width: sr.width + 'px', height: sr.height + 'px' });
   }
   fitRes();
 
@@ -412,10 +442,10 @@
 
   // ---- GL setup
   const vs = `attribute vec2 p; attribute vec2 uv; varying vec2 v; uniform vec2 res;
-    varying vec2 wpos; uniform vec3 cam; void main(){ v = uv; wpos = p; vec2 q = (p - cam.xy) * cam.z; gl_Position = vec4(q.x/res.x*2.0-1.0, 1.0-q.y/res.y*2.0, 0.0, 1.0); }`;
+    varying vec2 wpos; varying vec2 spv; uniform vec3 cam; uniform vec2 ext; void main(){ v = uv; wpos = p; vec2 q = (p - cam.xy) * cam.z; spv = q; gl_Position = vec4((q.x+ext.x)/(res.x+2.0*ext.x)*2.0-1.0, 1.0-(q.y+ext.y)/(res.y+2.0*ext.y)*2.0, 0.0, 1.0); }`;
   // Lauren's About overlay: a teal HUE layer at 32% over the whole frame except the photo. It sits above the koi and
   // under the text, so a koi passing beneath the words is quietened and the text stays easy to read.
-  const fs = `precision mediump float; varying vec2 v; varying vec2 wpos; uniform sampler2D t; uniform sampler2D halo; uniform vec4 ovr; uniform vec4 hole; uniform vec2 ovrY;
+  const fs = `precision mediump float; varying vec2 v; varying vec2 wpos; varying vec2 spv; uniform float edge; uniform sampler2D t; uniform sampler2D halo; uniform vec4 ovr; uniform vec4 hole; uniform vec2 ovrY;
     float lum(vec3 c){ return dot(c, vec3(0.3, 0.59, 0.11)); }
     vec3 clipC(vec3 c){ float l = lum(c), n = min(min(c.r, c.g), c.b), x = max(max(c.r, c.g), c.b);
       if (n < 0.0) c = l + (c - l) * l / max(l - n, 1e-4); if (x > 1.0) c = l + (c - l) * (1.0 - l) / max(x - l, 1e-4); return c; }
@@ -428,6 +458,7 @@
       float m = 0.0;
       if (hu.x > 0.0 && hu.x < 1.0 && hu.y > 0.0 && hu.y < 1.0) m = texture2D(halo, hu).a * 0.5 * smoothstep(ovrY.x, ovrY.y, wpos.y);
       if (m > 0.0 && c.a > 0.001) c.rgb = mix(c.rgb, vec3(0.05, 0.40, 0.46) * c.a, m);
+      if (edge > 0.5) { float o = max(max(-spv.x, spv.x - 1440.0), max(-spv.y, spv.y - 1024.0)); c *= 1.0 - smoothstep(0.0, 160.0, o); }   // a page's own pads fade past its frame
       gl_FragColor = c;
     }`;
   function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
@@ -447,15 +478,15 @@
 
   // ---- water layers, stacked like the Figma frame:
   // base water (with the hue layer) > lettering > painted koi > texture > S-curve lines (linear dodge 15%) > orange koi
-  const wvs = `attribute vec2 p; varying vec2 uv; varying vec2 wp; uniform vec4 rect; uniform vec3 cam;
+  const wvs = `attribute vec2 p; varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform vec4 rect; uniform vec3 cam; uniform vec2 ext;
     void main(){ uv = p*0.5+0.5; uv.y = 1.0-uv.y; wp = rect.xy + uv*rect.zw;
-      vec2 sp = (wp - cam.xy) * cam.z; gl_Position = vec4(sp.x/1440.0*2.0-1.0, 1.0-sp.y/1024.0*2.0, 0.0, 1.0); }`;
+      sp = (wp - cam.xy) * cam.z; gl_Position = vec4((sp.x+ext.x)/(1440.0+2.0*ext.x)*2.0-1.0, 1.0-(sp.y+ext.y)/(1024.0+2.0*ext.y)*2.0, 0.0, 1.0); }`;
   const wfs = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     precision highp float;
     #else
     precision mediump float;
     #endif
-    varying vec2 uv; varying vec2 wp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
+    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
     void main(){
       // one continuous pond: texture coords come from world position, mirrored past the image edge,
       // so a section's water can run on under the next one while it cross-fades
@@ -473,7 +504,9 @@
         float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
         w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
       d += w / vec2(1440.0, 1024.0);
-      if (mode == 3) { gl_FragColor = texture2D(t, tu) * a; return; }           // lettering: stays crisp and still
+      if (mode == 3) {                                                     // lettering: stays crisp and still
+        float o = max(max(-sp.x, sp.x - 1440.0), max(-sp.y, sp.y - 1024.0)); // past her frame, a neighbouring page's words and photo fade away softly
+        gl_FragColor = texture2D(t, tu) * a * (1.0 - smoothstep(0.0, 160.0, o)); return; }
       vec4 c = texture2D(t, tu + d);
       if (mode == 0) {                                                     // base water + drifting light
         float l = sin(q.x*5.0 + q.y*3.0 + sin(q.y*4.0 - time*0.2)*1.6 - time*0.18);
@@ -487,7 +520,8 @@
   const wAP = gl.getAttribLocation(wprog, 'p');
   const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
   const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
-  const view = () => [camX, cam, camX + 1440 / camZ, cam + 1024 / camZ];
+  const view = () => [camX - EXT[0] / camZ, cam - EXT[1] / camZ, camX + (1440 + EXT[0]) / camZ, cam + (1024 + EXT[1]) / camZ];
+  const uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
   const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
   function texFrom(img) {
@@ -502,7 +536,7 @@
       if (k.P) for (let j = 0; j < 8; j++) { const q = k.P[Math.round(4 + j * (k.iTail - 4) / 7)]; bodyArr[(fi * 8 + j) * 2] = q[0]; bodyArr[(fi * 8 + j) * 2 + 1] = q[1]; }
       (k.trail || []).forEach((p, j) => { const o = (fi * 16 + j) * 3; trailArr[o] = p[0]; trailArr[o + 1] = p[1]; trailArr[o + 2] = time - p[2]; });
     });
-    gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
+    gl.useProgram(wprog); gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
     aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [AX,AY,1440*AS,1024*AS], photo: [...A(1009,60),431*AS,671*AS] };
@@ -638,7 +672,7 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, padPB); gl.bufferData(gl.ARRAY_BUFFER, padPos, gl.DYNAMIC_DRAW);
     gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, leafUV); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
-    gl.bindTexture(gl.TEXTURE_2D, PAD.tex); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.uniform1f(uEdge, 1); gl.bindTexture(gl.TEXTURE_2D, PAD.tex); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.uniform1f(uEdge, 0);
   }
   function potCanvas(img) {            // WebGL 1 only mipmaps power-of-two sizes; uv are 0..1 so stretching is harmless
     const c = document.createElement('canvas'); c.width = 2048; c.height = 2048;
@@ -777,10 +811,10 @@
   window.__dbg = () => KOI.map(k => [k.name, Math.round(k.speed * k.sc * k.boost), k.trans ? 'curve' : 'loop', k.boost.toFixed(2), (k.space||1).toFixed(2), k.plan && k.td ? Math.round(k.plan.u - (k.td[k.td.length-1] - k.dist)) % Math.round(k.plan.loop.P) : 0].join(' ')).join(' | ');
   window.__heads = () => KOI.map(k => k.tp ? trackAt(k, k.dist).p.map(Math.round) : null).concat([ART_OVAL.P, koiDY]);
   let koiDX = 0, koiDY = 0, koiT = [0, 0], lastScrollT = -1e9, mouse = null, lastY = 0, page = 'home', home = [0, 0, 1], artX = 0, camAnim = null;
-  const pondH = () => canvas.getBoundingClientRect().height || innerHeight;
+  const pondH = () => frameRect().height || innerHeight;
   function camTarget() {
     if (page === 'works') return [WX, AY, Z];
-    if (page === 'art') return [GX + artX, AY, ZA];
+    if (page === 'art') return [GX + EXT[0] / ZA + artX, AY, ZA];   // the window's left edge starts at the art pond's own edge
     return home;
   }
   function stepCam(dt) {
@@ -867,9 +901,10 @@
 
   // ---- fine art: hover (or tap / Enter) a piece to dive into its detail slide; leave it by the arrow, Esc, a click on the pad, or scrolling
   const TW = {"invisible-circus": 892, "puppetry": 504, "80000-hours": 587, "unfolded-box": 1022, "threads-of-identity": 1028, "boxed-in": 618, "doomscrolled": 686, "receipts": 458, "fishing-for-parts": 915, "temporal-mechanics": 996, "chronotopia": 623};
-  const ART = [{"id": "invisible-circus", "spot": [350, 1109], "title": "Invisible Circus", "tile": [137, 246, 360, 592], "photo": [805, 252, 431, 660], "meta": [["Year", "2024"], ["Medium", "Oil on canvas"], ["Dimension", "24” x 36”"]], "desc": "My mind often houses an invisible circus of competing thoughts and impulses. While it appears that I am being pulled almost apart by competitions for my attention and interest, I find comfort in the consistent intensity of being inundated with internal and external sensations, and, consequently, my typical sensation of time is quite rapid. I redefine my relationship with my own visage by processing all my internal and external thoughts, impulses, and sensations through art in an introspective yet playful process."}, {"id": "unfolded-box", "spot": [324, 318], "title": "The Unfolded Box", "tile": [557, 246, 360, 314], "photo": [720, 353, 600, 457], "meta": [["Year", "2025"], ["Medium", "Watercolor and colored pencil on paper"], ["Dimension", "32” x 24”"]], "desc": "The Unfolded Box deliberately hyperbolizes the feeling of tension and anxiety unique to the office setting. Expanding upon the themes of isolation and overwork in 80,000 Hours, corporate time becomes simultaneously discarded yet made to be an active antagonist. Whereas 80,000 Hours explored how identity dissolves into routine, The Unfolded Box examines the multitude of pressures compressed within one cubicle. Drawing on the principle that decreased volume creates increased pressure, the work reveals how every inch of the interior is suffocatingly filled with tasks, notes, and demands."}, {"id": "80000-hours", "spot": [782, 684], "title": "80,000 Hours", "tile": [977, 246, 360, 337], "photo": [720, 334, 600, 495], "meta": [["Year", "2024"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 24”"]], "desc": "The average person spends 80,000 hours working in their lifetime, often hunched in a cubicle beneath the phosphorescent glow of a screen. This piece depicts skeletal figures slumped in cubicles, their heads replaced by burnt-out bulbs to symbolize mental exhaustion and loss of individuality. The use of a harsh cyan palette and endless grids mimics the cold, repetitive nature of modern office spaces.\nBy emphasizing uniformity and depressing conditions, the work questions what remains of our identity and purpose when human labor becomes tedious and eventually obsolete in the rise of artificial intelligence."}, {"id": "puppetry", "spot": [1162, 1141], "title": "Puppetry", "tile": [557, 624, 360, 488], "photo": [755, 252, 530, 660], "meta": [["Year", "2025"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 20”"]], "desc": "The performative self portrait is a way in which I navigate my internal and external sources of motivation and willpower. As I find myself in cycles of excessive work and excessive burnout, I suppress the desire to control the intangible. Surrealism is the only arena where my impulses roam free, without boundaries, safe enough to confront my goals. My identity and likeness become vehicles of desire and possibility as I start to bring my envisioned self into the physical world. I am the puppeteer, not for power, but for survival."}, {"id": "boxed-in", "spot": [1311, 244], "title": "Boxed In", "tile": [977, 647, 360, 401], "photo": [720, 281, 600, 602], "meta": [["Year", "2025"], ["Medium", "Acrylic on cardboard"], ["Dimension", "32” x 32” x 32”"]], "desc": "To participate in the unspoken Laws of Conformity requires little thought. Its comfort lies in passivity, an easy script of behaviors that allow for almost seamless social integration and which masks individuality. In this piece, the viewer is invited to crawl inside the brain of someone surrendering to conformity. The forms suggest a mind that folds in on itself, molding too well to the Laws of Conformity."}, {"id": "threads-of-identity", "spot": [1805, 1177], "title": "Threads of Identity", "tile": [137, 902, 360, 284], "photo": [720, 379, 600, 406], "meta": [["Year", "2024"], ["Medium", "Mixed media"], ["Dimension", "20” x 30”"]], "desc": "Emotions like excitement, love, sorrow, and disdain are not shaped solely in positive or negative contexts. Some amalgamation of experiences results in human feelings that are far more layered than pure. The heart responds to flow. Functionally, the flow of blood throughout the body, and symbolically, the flow of emotions from ourselves to other humans. In surveying a cross-section of my community, I capture a polarity of memories and experiences that we often bifurcate into good and evil. The bifurcated heart houses these two islands of memories, connected by “veins” of yarn that reveal the true intertwined nature of human emotion."}, {"id": "temporal-mechanics", "spot": [1875, 521], "title": "Temporal Mechanics", "tile": [977, 1112, 360, 243], "photo": [720, 413, 600, 338], "meta": [["Year", "2025"], ["Medium", "Video"], ["Running Time", "48 s"], ["Dimension", "40” x 80”"]], "desc": "In this piece, analog and digital clocks represent universally acknowledged standard forward progression of time. However, each clock is set at a different time and runs at different speeds, showing how the individual experience of these agreed upon units of advancement varies radically from individual to individual. Projected over the clocks, the video shows clips of moments that show how the experience of waiting for an event to start can drag slowly, while the same amount of time can feel rapid as one races to work. Every moment on video occurred concurrently. The result is chaotic yet universally recognized."}, {"id": "chronotopia", "spot": [2476, 938], "title": "Chronotopia", "tile": [557, 1176, 360, 193], "photo": [720, 454, 600, 255], "meta": [["Year", "2025"], ["Medium", "Video and mixed media"], ["Running Time", "12 s"], ["Dimension", "16” x 18”"]], "desc": "The chronotope, or the unique human perception of the time-space continuum, is a constitutive aspect of literature and the arts, as Mikhail Bakhtin describes. For Bakhtin, one’s ideologies and worldview inform how they perceive the flow of events, and time becomes visible as it changes the landscape it inhabits. Over 14 days and 72 recorded hours, I observed a familiar public space, capturing how a single space can hold the residue of multiple moments. This work resists a singular experience of time. Instead, it is built from accumulated traces: quiet repetitions, residues of multiple moments, subtle shifts, and lingering echoes."}, {"id": "receipts", "spot": [3384, 1118], "title": "Receipts", "tile": [137, 1250, 360, 494], "photo": [758, 252, 524, 660], "meta": [["Year", "2025"], ["Medium", "Sculpture"], ["Dimension", "13” x 10” x 8”"]], "desc": "Our society runs on results. The process of creation is overlooked, minimized through factories and technology, stripping away labor to maximize output and profit. The repetitive and rigid forms of hands sculpted from receipts are used to represent how human effort is reduced to measurable outcomes. The melted wax, an echo of the candles once used as humanity's primary light source, now replaced by electricity, freezes the hands' attempts to escape, to cultivate, and to work. By mirroring the very systems it critiques, the work reflects the erasure of time and individuality in a society driven by speed and productivity."}, {"id": "doomscrolled", "spot": [2235, 1527], "title": "Doomscrolled", "tile": [977, 1419, 360, 333], "photo": [720, 338, 600, 488], "meta": [["Year", "2025"], ["Medium", "Mixed media"], ["Dimension", "24” x 30”"]], "desc": "An artificial light source illuminates the amygdala, simulating brain activity. Upon the recognition of human limbs curled up in a claustrophobic position, the light becomes the oversaturating glow of the screen, bringing along suppressed feelings of shame that go hand in hand with excessive screen use. On a social level, time spent online destroys opportunity and productivity, and on a biological level, the prefrontal skill to establish objectives and visualize goals begins to rust. Buried under the false protection of blankets, time slips away as hours of the night are spent awake to make up for the day."}, {"id": "fishing-for-parts", "spot": [2952, 615], "title": "Fishing for Parts", "tile": [557, 1433, 360, 313], "photo": [720, 354, 600, 455], "meta": [["Year", "2024"], ["Medium", "Clay"], ["Dimension", "36” x 48” x 12”"]], "desc": "Fishing for Parts examines the tension between personal freedom and ethical constraint in an age of accelerating technological advancement. Drawing from historical surgical cases, dismembered body parts cast in white are suspended in red netting; its representation evokes anatomical specimens and a sense of entrapment. The fragmented forms suggest a conflict between bodily autonomy and medical responsibility, highlighting the precarious role of doctors in mediating extreme acts of self-modification. By collapsing the boundaries between agency and clinical intervention, the work reveals the unsettling implications of treating the human body as a site of radical experimentation."}];
+  const ART = [{"id": "invisible-circus", "spot": [350, 1109], "title": "Invisible Circus", "tile": [137, 246, 360, 592], "photo": [805, 252, 431, 660], "meta": [["Year", "2024"], ["Medium", "Oil on canvas"], ["Dimension", "24” x 36”"]], "desc": "My mind often houses an invisible circus of competing thoughts and impulses. While it appears that I am being pulled almost apart by competitions for my attention and interest, I find comfort in the consistent intensity of being inundated with internal and external sensations, and, consequently, my typical sensation of time is quite rapid. I redefine my relationship with my own visage by processing all my internal and external thoughts, impulses, and sensations through art in an introspective yet playful process."}, {"id": "unfolded-box", "extra": {"vid": "rooms-stop-motion", "label": "Rooms (stop motion)", "rect": [860, 600, 480, 320]}, "spot": [324, 318], "title": "The Unfolded Box", "tile": [557, 246, 360, 314], "photo": [700, 150, 560, 427], "meta": [["Year", "2025"], ["Medium", "Watercolor and colored pencil on paper"], ["Dimension", "32” x 24”"]], "desc": "The Unfolded Box deliberately hyperbolizes the feeling of tension and anxiety unique to the office setting. Expanding upon the themes of isolation and overwork in 80,000 Hours, corporate time becomes simultaneously discarded yet made to be an active antagonist. Whereas 80,000 Hours explored how identity dissolves into routine, The Unfolded Box examines the multitude of pressures compressed within one cubicle. Drawing on the principle that decreased volume creates increased pressure, the work reveals how every inch of the interior is suffocatingly filled with tasks, notes, and demands."}, {"id": "80000-hours", "spot": [782, 684], "title": "80,000 Hours", "tile": [977, 246, 360, 337], "photo": [720, 334, 600, 495], "meta": [["Year", "2024"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 24”"]], "desc": "The average person spends 80,000 hours working in their lifetime, often hunched in a cubicle beneath the phosphorescent glow of a screen. This piece depicts skeletal figures slumped in cubicles, their heads replaced by burnt-out bulbs to symbolize mental exhaustion and loss of individuality. The use of a harsh cyan palette and endless grids mimics the cold, repetitive nature of modern office spaces.\nBy emphasizing uniformity and depressing conditions, the work questions what remains of our identity and purpose when human labor becomes tedious and eventually obsolete in the rise of artificial intelligence."}, {"id": "puppetry", "spot": [1162, 1141], "title": "Puppetry", "tile": [557, 624, 360, 488], "photo": [755, 252, 530, 660], "meta": [["Year", "2025"], ["Medium", "Acrylic on canvas"], ["Dimension", "20” x 20”"]], "desc": "The performative self portrait is a way in which I navigate my internal and external sources of motivation and willpower. As I find myself in cycles of excessive work and excessive burnout, I suppress the desire to control the intangible. Surrealism is the only arena where my impulses roam free, without boundaries, safe enough to confront my goals. My identity and likeness become vehicles of desire and possibility as I start to bring my envisioned self into the physical world. I am the puppeteer, not for power, but for survival."}, {"id": "boxed-in", "spot": [1311, 244], "title": "Boxed In", "tile": [977, 647, 360, 401], "photo": [720, 281, 600, 602], "meta": [["Year", "2025"], ["Medium", "Acrylic on cardboard"], ["Dimension", "32” x 32” x 32”"]], "desc": "To participate in the unspoken Laws of Conformity requires little thought. Its comfort lies in passivity, an easy script of behaviors that allow for almost seamless social integration and which masks individuality. In this piece, the viewer is invited to crawl inside the brain of someone surrendering to conformity. The forms suggest a mind that folds in on itself, molding too well to the Laws of Conformity."}, {"id": "threads-of-identity", "spot": [1805, 1177], "title": "Threads of Identity", "tile": [137, 902, 360, 284], "photo": [720, 379, 600, 406], "meta": [["Year", "2024"], ["Medium", "Mixed media"], ["Dimension", "20” x 30”"]], "desc": "Emotions like excitement, love, sorrow, and disdain are not shaped solely in positive or negative contexts. Some amalgamation of experiences results in human feelings that are far more layered than pure. The heart responds to flow. Functionally, the flow of blood throughout the body, and symbolically, the flow of emotions from ourselves to other humans. In surveying a cross-section of my community, I capture a polarity of memories and experiences that we often bifurcate into good and evil. The bifurcated heart houses these two islands of memories, connected by “veins” of yarn that reveal the true intertwined nature of human emotion."}, {"id": "temporal-mechanics", "spot": [1875, 521], "title": "Temporal Mechanics", "tile": [977, 1112, 360, 243], "photo": [720, 413, 600, 338], "meta": [["Year", "2025"], ["Medium", "Video"], ["Running Time", "48 s"], ["Dimension", "40” x 80”"]], "desc": "In this piece, analog and digital clocks represent universally acknowledged standard forward progression of time. However, each clock is set at a different time and runs at different speeds, showing how the individual experience of these agreed upon units of advancement varies radically from individual to individual. Projected over the clocks, the video shows clips of moments that show how the experience of waiting for an event to start can drag slowly, while the same amount of time can feel rapid as one races to work. Every moment on video occurred concurrently. The result is chaotic yet universally recognized."}, {"id": "chronotopia", "vid": "chronotopia", "spot": [2476, 938], "title": "Chronotopia", "tile": [557, 1176, 360, 193], "photo": [740, 300, 560, 443], "meta": [["Year", "2025"], ["Medium", "Video and mixed media"], ["Running Time", "12 s"], ["Dimension", "16” x 18”"]], "desc": "The chronotope, or the unique human perception of the time-space continuum, is a constitutive aspect of literature and the arts, as Mikhail Bakhtin describes. For Bakhtin, one’s ideologies and worldview inform how they perceive the flow of events, and time becomes visible as it changes the landscape it inhabits. Over 14 days and 72 recorded hours, I observed a familiar public space, capturing how a single space can hold the residue of multiple moments. This work resists a singular experience of time. Instead, it is built from accumulated traces: quiet repetitions, residues of multiple moments, subtle shifts, and lingering echoes."}, {"id": "receipts", "spot": [3384, 1118], "title": "Receipts", "tile": [137, 1250, 360, 494], "photo": [758, 252, 524, 660], "meta": [["Year", "2025"], ["Medium", "Sculpture"], ["Dimension", "13” x 10” x 8”"]], "desc": "Our society runs on results. The process of creation is overlooked, minimized through factories and technology, stripping away labor to maximize output and profit. The repetitive and rigid forms of hands sculpted from receipts are used to represent how human effort is reduced to measurable outcomes. The melted wax, an echo of the candles once used as humanity's primary light source, now replaced by electricity, freezes the hands' attempts to escape, to cultivate, and to work. By mirroring the very systems it critiques, the work reflects the erasure of time and individuality in a society driven by speed and productivity."}, {"id": "doomscrolled", "spot": [2235, 1527], "title": "Doomscrolled", "tile": [977, 1419, 360, 333], "photo": [720, 338, 600, 488], "meta": [["Year", "2025"], ["Medium", "Mixed media"], ["Dimension", "24” x 30”"]], "desc": "An artificial light source illuminates the amygdala, simulating brain activity. Upon the recognition of human limbs curled up in a claustrophobic position, the light becomes the oversaturating glow of the screen, bringing along suppressed feelings of shame that go hand in hand with excessive screen use. On a social level, time spent online destroys opportunity and productivity, and on a biological level, the prefrontal skill to establish objectives and visualize goals begins to rust. Buried under the false protection of blankets, time slips away as hours of the night are spent awake to make up for the day."}, {"id": "fishing-for-parts", "spot": [2952, 615], "title": "Fishing for Parts", "tile": [557, 1433, 360, 313], "photo": [720, 354, 600, 455], "meta": [["Year", "2024"], ["Medium", "Clay"], ["Dimension", "36” x 48” x 12”"]], "desc": "Fishing for Parts examines the tension between personal freedom and ethical constraint in an age of accelerating technological advancement. Drawing from historical surgical cases, dismembered body parts cast in white are suspended in red netting; its representation evokes anatomical specimens and a sense of entrapment. The fragmented forms suggest a conflict between bodily autonomy and medical responsibility, highlighting the precarious role of doctors in mediating extreme acts of self-modification. By collapsing the boundaries between agency and clinical intervention, the work reveals the unsettling implications of treating the human body as a site of radical experimentation."}];
   const tilesEl = document.getElementById('tiles'), detail = document.getElementById('detail');
-  const dTitle = document.getElementById('dtitle'), dMeta = document.getElementById('dmeta'), dDesc = document.getElementById('ddesc'), dImg = document.getElementById('dimg');
+  const dTitle = document.getElementById('dtitle'), dMeta = document.getElementById('dmeta'), dDesc = document.getElementById('ddesc'), dImg = document.getElementById('dimg'), dVid = document.getElementById('dvid'), dExtra = document.getElementById('dextra');
+  let dMain = dImg;
   ART.forEach(a => { [a.id + '.jpg', 'title-' + a.id + '.png'].forEach(f => { const im = new Image(); im.src = 'art/' + f; }); });          // warm the cache so a slide opens with its picture
   const FLOAT = ART.map((a, i) => {                 // each piece's resting spot (her gallery layout, loosened a little), tilt and drift rhythm
     const r = n => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
@@ -891,7 +926,9 @@
   const tileBtns = ART.map((a, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'tilelink'; b.hidden = true;
     b.setAttribute('aria-label', a.title + ', details'); tilesEl.appendChild(b);
-    const im = document.createElement('img'); im.src = 'art/' + a.id + '.jpg'; im.alt = ''; im.draggable = false;
+    let im;
+    if (a.vid) { im = document.createElement('video'); Object.assign(im, { src: 'art/' + a.vid + '.mp4', poster: 'art/' + a.vid + '-poster.jpg', muted: true, loop: true, autoplay: true, playsInline: true }); im.setAttribute('aria-hidden', 'true'); }   // plays like a GIF
+    else { im = document.createElement('img'); im.src = 'art/' + a.id + '.jpg'; im.alt = ''; im.draggable = false; }
     const cap = document.createElement('span'); cap.textContent = a.title; b.append(im, cap);
     b.addEventListener('click', e => openArt(i, b, e.detail === 0));   // opens on click; keyboard opens move focus into the slide   // keyboard opens move focus into the slide
     return b;
@@ -901,10 +938,10 @@
   let zoomFrom = null;
   function setP(p) {
     detail.style.setProperty('--p', p);
-    if (!zoomFrom) { dImg.style.transform = ''; return; }
-    const pr = detail.getBoundingClientRect(), L = dImg.offsetLeft, T = dImg.offsetTop, W = dImg.offsetWidth, H = dImg.offsetHeight;
+    if (!zoomFrom) { dMain.style.transform = ''; return; }
+    const pr = dMain.offsetParent.getBoundingClientRect(), L = dMain.offsetLeft, T = dMain.offsetTop, W = dMain.offsetWidth, H = dMain.offsetHeight;
     const fx = zoomFrom.left - pr.left, fy = zoomFrom.top - pr.top, q = 1 - p;
-    dImg.style.transform = `translate(${(fx - L) * q}px, ${(fy - T) * q}px) scale(${1 + (zoomFrom.width / W - 1) * q}, ${1 + (zoomFrom.height / H - 1) * q})`;
+    dMain.style.transform = `translate(${(fx - L) * q}px, ${(fy - T) * q}px) scale(${1 + (zoomFrom.width / W - 1) * q}, ${1 + (zoomFrom.height / H - 1) * q})`;
   }
   function animR(from, to, ms, done) {
     cancelAnimationFrame(dAnim); const t0 = performance.now();
@@ -920,21 +957,26 @@
     ti.style.width = (TW[a.id] / 1.4 / 1152 * 100) + '%';   // h2 is 80% of the frame (1152 px)
     dMeta.innerHTML = ''; a.meta.forEach(([k, v]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; dMeta.append(dt, dd); });
     dDesc.textContent = a.desc;
-    const [x, y, w, h] = a.photo; dImg.src = 'art/' + a.id + '.jpg'; dImg.alt = a.title;
-    Object.assign(dImg.style, { left: x / 14.4 + '%', top: y / 10.24 + '%', width: w / 14.4 + '%', height: h / 10.24 + '%' });
+    const [x, y, w, h] = a.photo, pos = ([x, y, w, h]) => ({ left: x / 14.4 + '%', top: y / 10.24 + '%', width: w / 14.4 + '%', height: h / 10.24 + '%' });
+    dImg.style.transform = dVid.style.transform = '';
+    if (a.vid) { dMain = dVid; dImg.hidden = true; dVid.hidden = false; dVid.poster = 'art/' + a.vid + '-poster.jpg'; dVid.src = 'art/' + a.vid + '.mp4'; dVid.setAttribute('aria-label', a.title); dVid.play().catch(() => {}); }
+    else { dMain = dImg; dVid.hidden = true; dVid.pause(); dVid.removeAttribute('src'); dImg.hidden = false; dImg.src = 'art/' + a.id + '.jpg'; dImg.alt = a.title; }
+    Object.assign(dMain.style, pos(a.photo));
+    if (a.extra) { dExtra.hidden = false; dExtra.src = 'art/' + a.extra.vid + '.mp4'; dExtra.poster = 'art/' + a.extra.vid.replace('-stop-motion', '') + '-poster.jpg'; dExtra.setAttribute('aria-label', a.extra.label); Object.assign(dExtra.style, pos(a.extra.rect)); dExtra.play().catch(() => {}); }
+    else { dExtra.hidden = true; dExtra.pause(); dExtra.removeAttribute('src'); }
     detail.querySelector('.info').style.setProperty('--dy', (a.meta.length > 3 ? 372 : 388 - (a.desc.length > 620 ? 13 : 0)) / 10.24 + '%');
-    zoomFrom = from.querySelector('img').getBoundingClientRect(); from.style.visibility = 'hidden';   // the piece lifts off the water
+    zoomFrom = from.querySelector('img,video').getBoundingClientRect(); from.style.visibility = 'hidden';   // the piece lifts off the water
     detail.hidden = false; setP(0); animR(0, 1, 560);
     if (kb) document.getElementById('dshut').focus({ preventScroll: true });
   }
   function closeArt() {
     if (openIdx < 0) return; const from = openFrom; openIdx = -1;
     const kb = detail.contains(document.activeElement);
-    if (from) zoomFrom = from.querySelector('img').getBoundingClientRect();      // and settles back where it now floats
+    if (from) zoomFrom = from.querySelector('img,video').getBoundingClientRect();      // and settles back where it now floats
     animR(1, 0, 440, () => { detail.hidden = true; if (from) from.style.visibility = ''; if (kb && from && !from.hidden) from.focus({ preventScroll: true }); });
   }
   document.getElementById('dshut').addEventListener('click', closeArt);
-  detail.addEventListener('click', e => { if (e.target === detail) closeArt(); });
+  detail.addEventListener('click', e => { if (e.target === detail || e.target.classList.contains('dframe')) closeArt(); });
   detail.addEventListener('wheel', () => closeArt(), { passive: true });
   addEventListener('keydown', e => { if (e.key === 'Escape') closeArt(); });
   function syncUI() {
@@ -944,14 +986,14 @@
   // DOM hotspots ride on the pond: world px -> position over the canvas
   function place(el, wx, wy, w, h, show) {
     el.hidden = !show; if (!show) return;
-    const r = canvas.getBoundingClientRect(), k = r.width / 1440 * camZ;
+    const r = frameRect(), k = r.width / 1440 * camZ;
     el.style.left = ((wx - camX) * k) + 'px'; el.style.top = ((wy - cam) * k) + 'px'; el.style.width = (w * k) + 'px'; el.style.height = (h * k) + 'px';
   }
   function placeUI() {
     const P = PADS[1], pc = A(1250, 845);
     place(followBtn, pc[0] - 205 * AS + P.dx, pc[1] - 205 * AS + P.dy, 410 * AS, 410 * AS, page === 'home' && cam > AY * 0.6);
     followBtn.style.transform = `rotate(${P.a}rad)`;
-    const q = Wk(1155, 226);
+    const q = Wk(1222, 740);   // her "Fine Art" pad, bottom right on currently (Figma)
     place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
     floatPieces();
   }
@@ -960,7 +1002,7 @@
     const show = page === 'art' || camX + 1440 / camZ > GX;     // the pond is there whenever the view reaches the art page
     const now = performance.now() / 1000, dt = floatT === null ? 0 : Math.min(0.05, now - floatT); floatT = now;
     const heads = show && running ? KOI.map(k => k.tp && k.tp.length ? add(trackAt(k, k.dist).p, [koiDX, 0]) : null) : [];
-    const r = canvas.getBoundingClientRect(), k = r.width / 1440 * camZ;
+    const r = frameRect(), k = r.width / 1440 * camZ;
     FLOAT.forEach((f, i) => {
       const b = tileBtns[i]; b.hidden = !show; if (!show) return;
       const t = running ? now : 0;
@@ -982,7 +1024,7 @@
     });
     if (show && running && page === 'art') dirty = true;
   }
-  const artMax = () => Math.max(0, GW * AS - 1440 / ZA), artK = () => (canvas.getBoundingClientRect().width || innerWidth) / 1440 * ZA;   // world px of sideways glide, screen px per world px
+  const artMax = () => Math.max(0, GW * AS - (1440 + 2 * EXT[0]) / ZA), artK = () => (frameRect().width || innerWidth) / 1440 * ZA;   // world px of sideways glide, screen px per world px
   function scrollState() {
     const y = scrollY, p = Math.max(0, Math.min(1, y / Math.max(1, innerHeight)));
     const e = 1 - Math.pow(1 - p, 2.2);
@@ -1021,7 +1063,7 @@
       { const tx = 0;                                 // the koi keep to their own path between the paintings
         koiDX += (tx - koiDX) * (dt ? 1 - Math.exp(-dt * 3) : 1); if (Math.abs(tx - koiDX) > 0.5) dirty = true; }
       const koiCam = on => gl.uniform3f(uCam, camX - (on ? koiDX : 0), cam - (on ? koiDY : 0), camZ);
-      gl.useProgram(prog); koiCam(false);
+      gl.useProgram(prog); koiCam(false); gl.uniform2f(uExt, EXT[0], EXT[1]);
       gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       const [orange, painted] = KOI;
       for (const k of KOI) pose(k, t, running ? dt : 0);
@@ -1042,7 +1084,7 @@
       drawLayer('worksTop', 3); drawLayer('artTop', 3);   // the koi swim under her pads and under the artwork
     }
     if (camAnim && camAnim.snap) {                    // freeze the dive's last frame over the canvas, then swap the pond underneath
-      const r = canvas.getBoundingClientRect(), A0 = camAnim, sp = [(A0.p0[0] - camX) * camZ / 1440 * 100, (A0.p0[1] - cam) * camZ / 1024 * 100];
+      const A0 = camAnim, sp = [((A0.p0[0] - camX) * camZ + EXT[0]) / (1440 + 2 * EXT[0]) * 100, ((A0.p0[1] - cam) * camZ + EXT[1]) / (1024 + 2 * EXT[1]) * 100];
       snapEl.width = canvas.width; snapEl.height = canvas.height;
       snapEl.getContext('2d').drawImage(canvas, 0, 0);
       snapEl.style.transformOrigin = sp[0] + '% ' + sp[1] + '%'; snapEl.style.opacity = '1'; snapEl.style.transform = 'none'; snapEl.hidden = false;
@@ -1053,7 +1095,7 @@
   }
   const LAYER_SRC = { base: 'water-base.png?v=4', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=1', lines: 'water-lines.png?v=1',
     aboutWater: 'about-water.png?v=2', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=4', aboutText: 'about-text.png?v=4',
-    worksWater: 'works-water.png?v=1', worksTop: 'works-top.png?v=1', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
+    worksWater: 'works-water.png?v=1', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
   KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });
@@ -1128,3 +1170,5 @@
   }
 })();
 </script>
+</body>
+</html>
