@@ -67,7 +67,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 
-<script src="scenes.js?v=3"></script>
+<script src="scenes.js?v=4"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
@@ -91,7 +91,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     for (const c of e.levels) if (c.width >= need) L = c;
     return L;
   }
-  const WATER = 'a/water-tile.jpg?v=1'; loadImg(WATER);
+  const WATER = '../works-water.png?v=2'; loadImg(WATER);
   const cv = document.getElementById('flow'), ctx = cv.getContext('2d'), glc = document.getElementById('gl');
   const hitsEl = document.getElementById('hits'), veil = document.getElementById('veil'), spacer = document.getElementById('spacer');
   const stillBtn = document.getElementById('still'), hint = document.getElementById('hint'), backBtn = document.getElementById('back'), soon = document.getElementById('soon');
@@ -130,7 +130,8 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     const s0 = Math.min(VW / WW, VH / WH) * 0.97;
     const s1 = Math.max(VH / 3400, VW / WW);
     const z = smooth(clamp(p / 0.14, 0, 1)), pan = smooth(clamp((p - 0.1) / 0.9, 0, 1));
-    const half = VW / 2 / s1, xa = half, xb = Math.max(half, WW - half);
+    const R = S.ir ? Math.max(WW, S.ir[0] + S.ir[2] - 120) : WW;              // run on to the far edge of her last pad, even where it hangs past the frame
+    const half = VW / 2 / s1, xa = half, xb = Math.max(half, R - half);
     return { s: Math.exp(Math.log(s0) * (1 - z) + Math.log(s1) * z), x: WW / 2 + ((xa + (xb - xa) * pan) - WW / 2) * z, y: WH / 2, p };
   }
   const fitRect = (r, m) => ({ s: Math.min(VW / r[2], VH / r[3]) * m, x: r[0] + r[2] / 2, y: r[1] + r[3] / 2 });
@@ -139,17 +140,17 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   function applyCam() {
     const k = cam.s * dpr, ox = (VW / 2 - cam.x * cam.s) * dpr, oy = (VH / 2 - cam.y * cam.s) * dpr;
     const [x0, x1, y0, y1] = [cam.x - VW / 2 / cam.s, cam.x + VW / 2 / cam.s, cam.y - VH / 2 / cam.s, cam.y + VH / 2 / cam.s];
-    bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.fillStyle = '#2f8f9c'; bctx.fillRect(0, 0, bgc.width, bgc.height);
+    bctx.setTransform(1, 0, 0, 1, 0, 0); bctx.fillStyle = '#137f8f'; bctx.fillRect(0, 0, bgc.width, bgc.height);
     const w = IMGS[WATER];
-    if (w && w.levels) {                          // her water, mirrored so it runs on seamlessly past the frame: tiles of 2x her frame
-      const tw = 2 * WW, th = 2 * WH, L = level(w, tw);
+    if (w && w.levels) {                          // the same seamless water as the Works pond on currently, repeated edge to edge in every direction
+      const tw = 6000, th = 6000 * 512 / 720, L = level(w, tw);
       bctx.setTransform(k, 0, 0, k, ox, oy); bctx.imageSmoothingQuality = 'high';
       for (let ty = Math.floor(y0 / th) * th; ty < y1; ty += th) for (let tx = Math.floor(x0 / tw) * tw; tx < x1; tx += tw) bctx.drawImage(L, tx, ty, tw + 1 / cam.s, th + 1 / cam.s);
     }
     drawLeaves();                                 // the leaves float on the water, under the koi
     fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.clearRect(0, 0, fgc.width, fgc.height);
     const c = IMGS[S.img];
-    if (c && c.levels) { fctx.setTransform(k, 0, 0, k, ox, oy); fctx.imageSmoothingQuality = 'high'; fctx.drawImage(level(c, WW), 0, 0, WW, WH); }
+    if (c && c.levels) { const r = S.ir || [0, 0, WW, WH]; fctx.setTransform(k, 0, 0, k, ox, oy); fctx.imageSmoothingQuality = 'high'; fctx.drawImage(level(c, r[2]), r[0], r[1], r[2], r[3]); }
     for (const b of hitsEl.children) { const r = b._r; b.style.transform = `translate(${(r[0] - cam.x) * cam.s + VW / 2}px, ${(r[1] - cam.y) * cam.s + VH / 2}px)`; b.style.width = r[2] * cam.s + 'px'; b.style.height = r[3] * cam.s + 'px'; }
   }
 
@@ -187,8 +188,6 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     if (flowK < 0.01 || !S.bow) return;
     ctx.save(); ctx.globalAlpha = flowK;
-    const [fx0, fy0] = toScreen(0, 0), [fx1, fy1] = toScreen(WW, WH);
-    ctx.beginPath(); ctx.rect(fx0 * dpr, fy0 * dpr, (fx1 - fx0) * dpr, (fy1 - fy0) * dpr); ctx.clip();
     const k = cam.s * dpr, ox = (VW / 2 - cam.x * cam.s) * dpr, oy = (VH / 2 - cam.y * cam.s) * dpr;
     ctx.setTransform(k, 0, 0, k, ox, oy);
     ctx.lineCap = 'round';
@@ -418,9 +417,6 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   function drawKoi() {
     gl.viewport(0, 0, glc.width, glc.height);
     gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-    const [fx0, fy0] = toScreen(0, 0), [fx1, fy1] = toScreen(WW, WH);       // the koi slip out of her frame at its edges
-    gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(Math.round(fx0 * dpr), Math.round(glc.height - fy1 * dpr), Math.max(0, Math.round((fx1 - fx0) * dpr)), Math.max(0, Math.round((fy1 - fy0) * dpr)));
     gl.uniform2f(uRes, VW, VH); gl.uniform3f(uCam, cam.x, cam.y, cam.s); gl.uniform1f(uOp, koiK);
     for (const k of KOI) {
       if (!k.ready) continue;
