@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Works · Lauren Young</title>
+<meta name="description" content="Lauren Young's case studies, laid out as lily pads in a koi pond.">
+<style>
+@font-face{font-family:"Melodrame";src:url(../fonts/melodrame.woff2) format("woff2");font-display:swap}
+/* The Works landing and every case study are Lauren's Figma frames. A current flows left to right around each pad and card,
+   and the two koi swim the open water between them. Click a project's pad and the koi lead you into its case study;
+   in a case study, click any image or section to bring it up full screen. */
+:root{
+  color-scheme: dark;
+  --pond-deep: oklch(0.34 0.055 212);
+  --chip-bg: rgb(6 40 52 / 0.55);
+  --chip-bg-hover: rgb(6 40 52 / 0.8);
+  --chip-ink: oklch(0.97 0.015 190);
+  --chip-line: rgb(255 255 255 / 0.2);
+  --koi: oklch(0.72 0.16 52);
+  --veil: oklch(0.38 0.11 150);
+  --label: "Melodrame", Georgia, serif;
+}
+html,body{background:var(--pond-deep);margin:0;color:var(--chip-ink)}
+.spacer{height:700vh}
+.stage{position:fixed;inset:0;overflow:hidden;height:100dvh}
+.world{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;will-change:transform}
+.world img{position:absolute;inset:0;width:100%;height:100%;user-select:none;transition:opacity .5s}
+.sea{position:absolute;background:url(a/water-tile.jpg?v=1) repeat}   /* her water, mirrored so it runs on seamlessly past the frame */
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#flow{mix-blend-mode:screen;transition:opacity .4s}
+.hits{position:absolute;inset:0}
+.hit{position:absolute;left:0;top:0;padding:0;margin:0;border:0;background:none;cursor:zoom-in;transform-origin:0 0;border-radius:6px}
+.hit.pad{cursor:pointer;border-radius:50%}
+.hit:focus-visible{outline:3px solid var(--koi);outline-offset:4px}
+.zoomed .hit{cursor:zoom-out}
+.veil{position:absolute;inset:0;background:var(--veil);opacity:0;pointer-events:none}
+.chip{font:15px/1.2 var(--label);color:var(--chip-ink);background:var(--chip-bg);border:1px solid var(--chip-line);border-radius:999px;padding:8px 14px}
+button.chip{cursor:pointer}
+button.chip:hover{background:var(--chip-bg-hover)}
+button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
+.still[aria-pressed="true"]{background:var(--koi);border-color:var(--koi);color:oklch(0.2 0.04 40)}
+.top,.ui{position:fixed;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:12px;pointer-events:none;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{top:0;padding-top:max(16px,env(safe-area-inset-top,0px))}
+.ui{bottom:0;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+.top > *,.ui > *{pointer-events:auto}
+.hint{transition:opacity .6s}
+.soon{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .4s;pointer-events:none}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="world" id="bg"><div class="sea" id="sea"></div></div>
+  <canvas id="flow"></canvas>
+  <canvas id="gl" role="img" aria-label="Two painted koi swimming the open water between the lily pads"></canvas>
+  <div class="world" id="fg"><img id="content" alt=""></div>
+  <div class="hits" id="hits"></div>
+  <div class="veil" id="veil"></div>
+</div>
+<div class="spacer" id="spacer" aria-hidden="true"></div>
+<div class="top">
+  <button class="chip" id="back" type="button">back to currently</button>
+  <span></span>
+</div>
+<div class="ui">
+  <span class="chip hint" id="hint">scroll to follow the current</span>
+  <button class="chip still" id="still" type="button" aria-pressed="false">still the water</button>
+</div>
+<span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
+
+<script src="scenes.js?v=1"></script>
+<script>
+(() => {
+  const U = 260;                                  // current speed, world px per second
+  const stage = document.getElementById('stage'), bg = document.getElementById('bg'), fg = document.getElementById('fg'), content = document.getElementById('content');
+  const cv = document.getElementById('flow'), ctx = cv.getContext('2d'), glc = document.getElementById('gl');
+  const hitsEl = document.getElementById('hits'), veil = document.getElementById('veil'), spacer = document.getElementById('spacer');
+  const stillBtn = document.getElementById('still'), hint = document.getElementById('hint'), backBtn = document.getElementById('back'), soon = document.getElementById('soon');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let still = reduce;
+  const setStill = () => { stillBtn.setAttribute('aria-pressed', still); stillBtn.textContent = still ? 'let it flow' : 'still the water'; };
+  setStill(); stillBtn.addEventListener('click', () => { still = !still; setStill(); });
+  const smooth = x => x * x * (3 - 2 * x), clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const easeIO = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1]], add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+  const mul = (a, s) => [a[0] * s, a[1] * s], len = a => Math.hypot(a[0], a[1]), norm = a => { const l = len(a) || 1; return [a[0] / l, a[1] / l]; };
+
+  // ---------- scene ----------
+  let id = 'works', S = SCENES.works, WW = S.W, WH = S.H, OBS = S.obs;
+  let VW = 1, VH = 1, dpr = 1;
+  const cam = { x: 0, y: 0, s: 0.1 };
+  function resize() {
+    VW = stage.clientWidth; VH = stage.clientHeight; dpr = Math.min(2, devicePixelRatio || 1);
+    for (const c of [cv, glc]) { c.width = Math.round(VW * dpr); c.height = Math.round(VH * dpr); }
+    sizeSpacer();
+  }
+  // the landing is seen whole top to bottom and glides sideways as you scroll; a case study opens on the whole frame, then zooms into its middle stream
+  const landS = () => Math.min(VH / WH, VW / 1600) ;
+  function sizeSpacer() {
+    if (id === 'works') spacer.style.height = (innerHeight + Math.max(0, WW * landS() - VW) * 1.4) + 'px';
+    else spacer.style.height = '700vh';
+  }
+  function scrollP() { const max = Math.max(1, document.documentElement.scrollHeight - innerHeight); return clamp(scrollY / max, 0, 1); }
+  function baseTarget() {
+    const p = scrollP();
+    if (id === 'works') {
+      const s = landS(), half = VW / 2 / s;
+      const xa = Math.min(WW / 2, half), xb = Math.max(WW / 2, WW - half);
+      return { s, x: xa + (xb - xa) * smooth(p), y: WH / 2, p };
+    }
+    const s0 = Math.min(VW / WW, VH / WH) * 0.97;
+    const s1 = Math.max(VH / 3400, VW / WW);
+    const z = smooth(clamp(p / 0.14, 0, 1)), pan = smooth(clamp((p - 0.1) / 0.9, 0, 1));
+    const half = VW / 2 / s1, xa = half, xb = Math.max(half, WW - half);
+    return { s: Math.exp(Math.log(s0) * (1 - z) + Math.log(s1) * z), x: WW / 2 + ((xa + (xb - xa) * pan) - WW / 2) * z, y: WH / 2, p };
+  }
+  const fitRect = (r, m) => ({ s: Math.min(VW / r[2], VH / r[3]) * m, x: r[0] + r[2] / 2, y: r[1] + r[3] / 2 });
+  const lerpCam = (a, b, t) => ({ s: Math.exp(Math.log(a.s) + (Math.log(b.s) - Math.log(a.s)) * t), x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const toScreen = (x, y) => [(x - cam.x) * cam.s + VW / 2, (y - cam.y) * cam.s + VH / 2];
+  function applyCam() {
+    const tf = `translate(${VW / 2 - cam.x * cam.s}px, ${VH / 2 - cam.y * cam.s}px) scale(${cam.s})`;
+    bg.style.transform = tf; fg.style.transform = tf;
+    for (const b of hitsEl.children) { const r = b._r; b.style.transform = `translate(${(r[0] - cam.x) * cam.s + VW / 2}px, ${(r[1] - cam.y) * cam.s + VH / 2}px)`; b.style.width = r[2] * cam.s + 'px'; b.style.height = r[3] * cam.s + 'px'; }
+  }
+
+  // ---------- the current: a gentle uniform flow plus a doublet around each pad and card (fading with distance), so it parts around each one ----------
+  let T = 0;
+  function psi(x, y) {
+    let p = y + 140 * Math.sin(x / 1500 - T * 0.5) * Math.cos(y / 1300 + T * 0.2);
+    for (const o of OBS) {
+      const dx = (x - o[0]) / o[2], dy = (y - o[1]) / o[3], r2 = dx * dx + dy * dy;
+      if (r2 < 0.04 || r2 > 40) continue;
+      p -= o[3] * dy / r2 * Math.min(1, Math.exp(-(r2 - 1) / 5));
+    }
+    return p;
+  }
+  function vel(x, y) { const h = 8; return [U * (psi(x, y + h) - psi(x, y - h)) / (2 * h), -U * (psi(x + h, y) - psi(x - h, y)) / (2 * h)]; }
+  function inside(x, y, pad = 1) {
+    for (const o of OBS) { const dx = (x - o[0]) / o[2], dy = (y - o[1]) / o[3]; if (dx * dx + dy * dy < pad) return true; }
+    return false;
+  }
+  function viewWorld() {
+    return [Math.max(-300, cam.x - VW / 2 / cam.s), Math.min(WW + 300, cam.x + VW / 2 / cam.s), Math.max(-300, cam.y - VH / 2 / cam.s), Math.min(WH + 300, cam.y + VH / 2 / cam.s)];
+  }
+  const NP = 170, TRAIL = 64, CHUNK = 8, parts = [];
+  function spawn(p, anywhere) {
+    const [x0, x1, y0, y1] = viewWorld();
+    let x, y, n = 0;
+    do { x = anywhere ? x0 - 400 + Math.random() * (x1 - x0 + 400) : x0 - 500 + Math.random() * 600; y = y0 + Math.random() * (y1 - y0); n++; }
+    while (inside(x, y, 1.1) && n < 30);
+    p.x = x; p.y = y; p.trail = [[x, y]]; p.age = 0; p.life = 5 + Math.random() * 7;
+    p.w = 8 + Math.random() * 16; p.a = 0.22 + Math.random() * 0.3;
+  }
+  function respawnAll() { parts.length = 0; for (let i = 0; i < NP; i++) { const p = {}; spawn(p, true); p.age = Math.random() * p.life; parts.push(p); } }
+  let flowK = 1;                                  // the streaks fade while a piece is up full screen
+  function drawFlow(run, dt) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    if (flowK < 0.01) return;
+    ctx.save(); ctx.globalAlpha = flowK;
+    const [fx0, fy0] = toScreen(0, 0), [fx1, fy1] = toScreen(WW, WH);
+    ctx.beginPath(); ctx.rect(fx0 * dpr, fy0 * dpr, (fx1 - fx0) * dpr, (fy1 - fy0) * dpr); ctx.clip();
+    const k = cam.s * dpr, ox = (VW / 2 - cam.x * cam.s) * dpr, oy = (VH / 2 - cam.y * cam.s) * dpr;
+    ctx.setTransform(k, 0, 0, k, ox, oy);
+    ctx.lineCap = 'round';
+    for (const o of S.bow) for (let j = 0; j < 3; j++) {           // bow waves where the current presses on each lily pad
+      const ph = (T * 0.35 + j / 3 + o[0] * 0.0001) % 1, grow = 1.04 + ph * 0.22;
+      ctx.beginPath(); ctx.ellipse(o[0], o[1], o[2] * grow, o[3] * grow, 0, Math.PI * 0.62, Math.PI * 1.38);
+      ctx.strokeStyle = `rgba(200,246,244,${0.13 * Math.sin(ph * Math.PI)})`; ctx.lineWidth = 42 - ph * 24; ctx.stroke();
+    }
+    const [x0, x1, y0, y1] = viewWorld();
+    ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+    for (const p of parts) {
+      if (run) {
+        const [u, v] = vel(p.x, p.y);
+        p.x += u * dt; p.y += v * dt; p.age += dt;
+        p.trail.push([p.x, p.y]); if (p.trail.length > TRAIL) p.trail.shift();
+        if (p.age > p.life || p.x > x1 + 600 || p.x < x0 - 1200 || p.y < y0 - 400 || p.y > y1 + 400 || inside(p.x, p.y, 0.92)) spawn(p, p.age <= p.life);
+      }
+      const tr = p.trail; if (tr.length < 3) continue;
+      const fade = Math.min(1, p.age / 1.2, (p.life - p.age) / 1.5);
+      for (let c = 0; c + 1 < tr.length; c += CHUNK) {
+        const e = Math.min(tr.length - 1, c + CHUNK), f = (c + e) / 2 / (tr.length - 1), bell = Math.sin(f * Math.PI);
+        ctx.beginPath(); ctx.moveTo(tr[c][0], tr[c][1]);
+        for (let i = c + 1; i <= e; i++) ctx.lineTo(tr[i][0], tr[i][1]);
+        ctx.strokeStyle = `rgba(200,246,244,${p.a * fade * bell})`;
+        ctx.lineWidth = p.w * bell + 1.5 / cam.s; ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ================= koi: the same swim as Lauren's site (follow-the-leader body on a planned track, carp wave, beat and glide) =================
+  const KSC = 1.1;
+  const KOI = [
+    { src: 'a/koi-painted-pad.png?v=1', spine: [[172,505],[200,440],[250,375],[325,300],[412,244],[500,206],[560,186],[660,160],[780,138],[900,125]],
+      body: 521, half: 285, bodyHalf: 85, phase0: 1.7, freq: 0.62, lane: 0 },
+    { src: 'a/koi-orange-pad.png?v=1', spine: [[712,112],[705,200],[678,285],[625,358],[552,410],[478,442],[405,462],[310,500],[210,540],[110,570]],
+      body: 513, half: 235, bodyHalf: 78, phase0: 0.0, freq: 0.68, lane: 1 }
+  ];
+  const SWIM = 1.9, N = 56, M = 17;
+  function trackPush(k, q) {
+    const n = k.tp.length;
+    if (n) { const l = len(sub(q, k.tp[n - 1])); if (l < 0.5) return; k.td.push(k.td[n - 1] + l); } else k.td.push(0);
+    k.tp.push(q);
+  }
+  function trackAt(k, D) {
+    const n = k.tp.length; D = Math.max(k.td[0], Math.min(k.td[n - 1], D));
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (k.td[m] <= D) lo = m; else hi = m; }
+    const f = (D - k.td[lo]) / Math.max(1e-6, k.td[hi] - k.td[lo]);
+    return { p: add(k.tp[lo], mul(sub(k.tp[hi], k.tp[lo]), f)), tan: norm(sub(k.tp[hi], k.tp[lo])) };
+  }
+  function trackCut(k, D) { const q = trackAt(k, D).p; let n = k.tp.length; while (n > 2 && k.td[n - 1] >= D) { k.tp.pop(); k.td.pop(); n--; } trackPush(k, q); }
+  // a lane is an open path through the open water, entering at the left edge and leaving at the right; the koi rides it,
+  // and once it has slipped out past the right edge it comes round again from the left (out of sight, beyond the frame)
+  function laneOf(k) { return S.lanes[Math.min(k.lane, S.lanes.length - 1)]; }
+  function laneDense(L) {                         // Catmull-Rom through the lane points, 8 world px apart
+    const out = [];
+    for (let i = 0; i < L.length - 1; i++) {
+      const p0 = L[Math.max(0, i - 1)], p1 = L[i], p2 = L[i + 1], p3 = L[Math.min(L.length - 1, i + 2)];
+      const n = Math.max(2, Math.round(len(sub(p2, p1)) / 8));
+      for (let s = 0; s < n; s++) { const t = s / n, t2 = t * t, t3 = t2 * t;
+        out.push([0, 1].map(j => 0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3))); }
+    }
+    out.push(L[L.length - 1]); return out;
+  }
+  function startLane(k, atX) {                     // lay the koi on its lane with its head near world x = atX
+    const L = k.dense = laneDense(laneOf(k));
+    let i = 0; while (i < L.length - 1 && L[i][0] < atX) i++;
+    const back = norm(sub(L[0], L[1]));
+    k.tp = []; k.td = [];
+    if (i < 300) for (let j = 300 - i; j > 0; j--) trackPush(k, add(L[0], mul(back, j * 8)));   // history runs straight back out past the edge
+    for (let j = Math.max(0, i - 300); j <= i; j++) trackPush(k, L[j]);
+    k.dist = k.td[k.td.length - 1]; k.li = i + 1; k.mode = 'lane'; feed(k);
+  }
+  function feed(k) {
+    if (k.mode === 'lane') {
+      const L = k.dense;
+      while (k.td[k.td.length - 1] - k.dist < 2400 && k.li < L.length) trackPush(k, L[k.li++]);
+      if (k.li >= L.length && k.td[k.td.length - 1] - k.dist < 2400) {         // carry straight on out past the edge
+        const n = k.tp.length, dir = norm(sub(k.tp[n - 1], k.tp[n - 30] || k.tp[0]));
+        for (let j = 1; j <= 100; j++) trackPush(k, add(k.tp[k.tp.length - 1], mul(dir, 8)));
+      }
+      const head = trackAt(k, k.dist).p;
+      if (k.li >= L.length && (head[0] > WW + 1400 || head[0] < -1400 || head[1] < -1600 || head[1] > WH + 1600)) startLane(k, -1e9);
+    } else if (k.mode === 'ring') {               // circling the pad you chose
+      while (k.td[k.td.length - 1] - k.dist < 2400) {
+        k.ra += 8 / k.rr * k.rdir; trackPush(k, [k.rc[0] + Math.cos(k.ra) * k.rr, k.rc[1] + Math.sin(k.ra) * k.rr]);
+      }
+    }
+    if (k.td[0] < k.dist - 4000) { k.tp.splice(0, 300); k.td.splice(0, 300); }
+  }
+  // the koi lead the way to a pad: a swim that only turns gently, then a slow circle round it
+  function guideTo(k, c, r, dir) {
+    trackCut(k, k.dist + 2);
+    const n0 = k.tp.length; let p = k.tp[n0 - 1].slice(), h = norm(sub(p, k.tp[n0 - 8] || k.tp[0]));
+    const R = 520, ds = 8;
+    for (let n = 0; n < 2500; n++) {
+      const v = sub(p, c), d = len(v);
+      if (Math.abs(d - r) < 40) {
+        const tang = mul([-v[1] / d, v[0] / d], dir);
+        if (h[0] * tang[0] + h[1] * tang[1] > 0.8) break;
+      }
+      // aim for a point on the circle a little ahead in the circling direction, so the swim joins it tangentially
+      const a = Math.atan2(v[1], v[0]) + dir * 0.9, aim = [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r];
+      const want = norm(sub(aim, p));
+      let da = Math.atan2(h[0] * want[1] - h[1] * want[0], h[0] * want[0] + h[1] * want[1]);
+      const lim = ds / R; da = clamp(da, -lim, lim);
+      const cs = Math.cos(da), sn = Math.sin(da); h = [h[0] * cs - h[1] * sn, h[0] * sn + h[1] * cs];
+      p = add(p, mul(h, ds)); trackPush(k, p);
+    }
+    const v = sub(p, c);
+    k.mode = 'ring'; k.rc = c; k.rr = r; k.ra = Math.atan2(v[1], v[0]); k.rdir = dir; feed(k);
+  }
+  function resample(pts, n, extHead, extTail) {
+    const p = pts.map(q => q.slice());
+    const h = norm(sub(p[0], p[1])), t = norm(sub(p[p.length - 1], p[p.length - 2]));
+    p.unshift(add(p[0], mul(h, extHead))); p.push(add(p[p.length - 1], mul(t, extTail)));
+    const dense = [];
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[Math.max(0, i - 1)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(p.length - 1, i + 2)];
+      for (let k = 0; k < 20; k++) { const s = k / 20, s2 = s * s, s3 = s2 * s;
+        dense.push([0, 1].map(j => 0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * s + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * s2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * s3))); }
+    }
+    dense.push(p[p.length - 1]);
+    const acc = [0]; for (let i = 1; i < dense.length; i++) acc.push(acc[i - 1] + len(sub(dense[i], dense[i - 1])));
+    const L = acc[acc.length - 1], out = [];
+    for (let i = 0, j = 0; i < n; i++) {
+      const target = L * i / (n - 1);
+      while (j < dense.length - 2 && acc[j + 1] < target) j++;
+      const f = (target - acc[j]) / Math.max(1e-6, acc[j + 1] - acc[j]);
+      out.push([dense[j][0] + (dense[j + 1][0] - dense[j][0]) * f, dense[j][1] + (dense[j + 1][1] - dense[j][1]) * f]);
+    }
+    return { pts: out, L, offset: extHead };
+  }
+  function normals(pts, win) {
+    const n = pts.length, out = [];
+    for (let i = 0; i < n; i++) { const a = pts[Math.max(0, i - win)], b = pts[Math.min(n - 1, i + win)]; const t = norm(sub(b, a)); out.push([-t[1], t[0]]); }
+    return out;
+  }
+  const gl = glc.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
+  const vs = `attribute vec2 p; attribute vec2 uv; varying vec2 v; uniform vec2 res; uniform vec3 cam;
+    void main(){ v = uv; vec2 q = (p - cam.xy) * cam.z + res * 0.5; gl_Position = vec4(q.x / res.x * 2.0 - 1.0, 1.0 - q.y / res.y * 2.0, 0.0, 1.0); }`;
+  const fs = `precision mediump float; varying vec2 v; uniform sampler2D t; uniform float op; void main(){ gl_FragColor = texture2D(t, v) * op; }`;
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+  const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  const aP = gl.getAttribLocation(prog, 'p'), aUV = gl.getAttribLocation(prog, 'uv');
+  const uRes = gl.getUniformLocation(prog, 'res'), uCam = gl.getUniformLocation(prog, 'cam'), uOp = gl.getUniformLocation(prog, 'op');
+  gl.uniform1i(gl.getUniformLocation(prog, 't'), 0);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  const idx = []; for (let i = 0; i < N - 1; i++) for (let j = 0; j < M - 1; j++) { const a = i * M + j, b = a + 1, c = a + M, d = c + 1; idx.push(a, c, b, b, c, d); }
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+  function potCanvas(img) { const c = document.createElement('canvas'); c.width = 2048; c.height = 2048; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, 2048, 2048); return c; }
+  function setup(k, img) {
+    const r = resample(k.spine.map(q => [q[0] + 100, q[1] + 100]), N, 120, 240);
+    k.half += 80;
+    k.rest = r.pts; k.s = r.pts.map((_, i) => r.L * i / (N - 1) - r.offset);
+    k.nr = normals(k.rest, 4);
+    k.cols = Array.from({ length: M }, (_, j) => -k.half + 2 * k.half * j / (M - 1));
+    const uv = new Float32Array(N * M * 2);
+    for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const q = add(k.rest[i], mul(k.nr[i], k.cols[j])); uv[(i * M + j) * 2] = q[0] / img.width; uv[(i * M + j) * 2 + 1] = q[1] / img.height; }
+    k.uvb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+    k.pb = gl.createBuffer(); k.pos = new Float32Array(N * M * 2);
+    k.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, k.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, potCanvas(img));
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (!k.tp) startLane(k, S.title[0] + S.title[2] * (k.lane ? 0.35 : 0.8));
+    k.ready = true;
+  }
+  function beatEnvelope(t, k) {
+    const cycle = 4.2, tt = (t + k.phase0 * 1.3) % cycle;
+    if (tt < 0.35) return smooth(tt / 0.35);
+    if (tt < 2.6) return 1;
+    if (tt < 3.2) return 1 - smooth((tt - 2.6) / 0.6) * 0.78;
+    if (tt < 3.85) return 0.22;
+    return 0.22 + smooth((tt - 3.85) / 0.35) * 0.78;
+  }
+  function pose(k, t, dt) {
+    k.envS = k.envS === undefined ? beatEnvelope(t, k) : k.envS + (beatEnvelope(t, k) - k.envS) * Math.min(1, dt * 1.6);
+    const env = k.envS, sc = KSC;
+    const want = (70 + 95 * env) * (k.hurry || 1);
+    k.speed = k.speed === undefined ? 120 : k.speed + (want - k.speed) * Math.min(1, dt * 1.2);
+    k.dist += k.speed * sc * SWIM * dt; feed(k);
+    const headD = k.dist, hp = trackAt(k, headD);
+    const Lb = k.body, lam = 1.35 * Lb, w = 2 * Math.PI * k.freq * (0.75 + 0.25 * env);
+    k.wphase = (k.wphase || 0) + w * dt;
+    const P = [];
+    for (let i = 0; i < N; i++) {
+      const s = k.s[i], pa = trackAt(k, headD - Math.max(s, 0) * sc);
+      let base = pa.p; const tan = s < 0 ? hp.tan : pa.tan;
+      if (s < 0) base = add(hp.p, mul(tan, -s * sc));
+      const nrm = [-tan[1], tan[0]], u = Math.max(0, s) / Lb;
+      let A = 0.012 - 0.04 * u + 0.085 * u * u; if (u > 1) A = 0.057 + 0.045 * (u - 1); A = Math.max(A, 0.008);
+      let lat = Lb * A * Math.sin(2 * Math.PI * s / lam - k.wphase) * (0.35 + 0.65 * env);
+      if (u > 1) lat += 2.5 * (u - 1) * Math.sin(4 * Math.PI * s / lam - 1.3 * k.wphase);
+      if (u > 0.85) lat += -Lb * 0.05 * (1 - env) * (u - 0.85);
+      P.push(add(base, mul(nrm, lat * sc)));
+    }
+    k.head = hp.p;
+    const nn = normals(P, 8);
+    let iM = 0; k.s.forEach((s, i) => { if (Math.abs(s - 0.04 * Lb) < Math.abs(k.s[iM] - 0.04 * Lb)) iM = i; });
+    const mouth = P[iM], wt = k.wt = (k.wt || 0) + dt;
+    for (let i = 0; i < N; i++) {
+      const u = Math.max(0, k.s[i]) / Lb, tan = [nn[i][1], -nn[i][0]];
+      for (let j = 0; j < M; j++) {
+        const v = k.cols[j] * sc; let q = add(P[i], mul(nn[i], v));
+        const out = Math.abs(v) - k.bodyHalf * sc;
+        if (out > 0 && u > 0.12 && u < 0.6) {
+          const zone = Math.sin(Math.PI * (u - 0.12) / 0.48), fold = (0.15 + 0.4 * env) * zone;
+          q = add(q, mul(tan, -out * fold * 0.55)); q = add(q, mul(nn[i], -Math.sign(v) * out * fold * 0.25));
+        }
+        if (k.s[i] < 0.1 * Lb) {
+          const r = len(sub(q, mouth)), ww = smooth(Math.max(0, Math.min(1, (r - 38 * sc) / (70 * sc)))) * (k.s[i] < 0.06 * Lb ? 1 : (0.1 * Lb - k.s[i]) / (0.04 * Lb));
+          if (ww > 0) {
+            const side = Math.sign(v) || 1;
+            const a = ww * (0.16 * Math.sin(wt * 1.5 + side * 1.2 + k.phase0) + 0.06 * Math.sin(wt * 2.9 + side * 0.4 + k.phase0 * 2));
+            const d = sub(q, mouth), c = Math.cos(a), sn = Math.sin(a);
+            q = add(mouth, [d[0] * c - d[1] * sn, d[0] * sn + d[1] * c]);
+          }
+        }
+        k.pos[(i * M + j) * 2] = q[0]; k.pos[(i * M + j) * 2 + 1] = q[1];
+      }
+    }
+  }
+  function drawKoi() {
+    gl.viewport(0, 0, glc.width, glc.height);
+    gl.disable(gl.SCISSOR_TEST); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    const [fx0, fy0] = toScreen(0, 0), [fx1, fy1] = toScreen(WW, WH);       // the koi slip out of her frame at its edges
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(Math.round(fx0 * dpr), Math.round(glc.height - fy1 * dpr), Math.max(0, Math.round((fx1 - fx0) * dpr)), Math.max(0, Math.round((fy1 - fy0) * dpr)));
+    gl.uniform2f(uRes, VW, VH); gl.uniform3f(uCam, cam.x, cam.y, cam.s); gl.uniform1f(uOp, koiK);
+    for (const k of KOI) {
+      if (!k.ready) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER, k.pb); gl.bufferData(gl.ARRAY_BUFFER, k.pos, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+      gl.bindTexture(gl.TEXTURE_2D, k.tex);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
+    }
+  }
+  KOI.forEach(k => { const img = new Image(); img.onload = () => setup(k, img); img.src = k.src; });
+
+  // ---------- what you can click: her project pads on the landing, every image and section in a case study ----------
+  let zoomR = null, koiK = 1;
+  function buildHits() {
+    hitsEl.textContent = '';
+    if (id === 'works') {
+      for (const [slug, x, y, w, h] of S.pads) {
+        const b = document.createElement('button'); b.className = 'hit pad'; b.type = 'button';
+        const c = [x + w / 2, y + h / 2], r = Math.min(w, h) * 0.42;                // the round of the pad itself, not its bounding box
+        b._r = [c[0] - r, c[1] - r, 2 * r, 2 * r];
+        const name = SCENES[slug] ? SCENES[slug].name : slug.replace(/-/g, ' ');
+        b.setAttribute('aria-label', SCENES[slug] ? `${name} case study` : `${name}, coming soon`);
+        b.addEventListener('click', () => SCENES[slug] ? diveTo(slug, c, r) : comingSoon(name));
+        hitsEl.appendChild(b);
+      }
+    } else {
+      const hs = S.hits.slice().sort((a, b) => b[3] * b[4] - a[3] * a[4]);      // big sections underneath, the images on them on top
+      for (const [kind, x, y, w, h] of hs) {
+        const b = document.createElement('button'); b.className = 'hit'; b.type = 'button'; b._r = [x, y, w, h];
+        b.setAttribute('aria-label', kind === 'i' ? 'Show this image full screen' : 'Show this section full screen');
+        b.addEventListener('click', e => { e.stopPropagation(); zoomR && zoomR === b._r ? unzoom() : zoomTo(b._r); });
+        hitsEl.appendChild(b);
+      }
+    }
+  }
+  let soonT = 0;
+  function comingSoon(name) { soon.textContent = `${name} is still being finished`; soon.style.opacity = 1; clearTimeout(soonT); soonT = setTimeout(() => soon.style.opacity = 0, 2200); }
+  function zoomTo(r) { zoomR = r; stage.classList.add('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.9, from: { ...cam } }; }
+  function unzoom() { if (!zoomR) return; zoomR = null; stage.classList.remove('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.8, from: { ...cam } }; }
+  stage.addEventListener('click', () => unzoom());
+  addEventListener('keydown', e => { if (e.key === 'Escape') unzoom(); });
+
+  // ---------- going between pages: the koi lead, the view follows them into the pad, and the next page opens out of its own title pad ----------
+  let anim = null;
+  function diveTo(slug, c, r) {
+    if (anim && anim.kind !== 'zoom') return;
+    KOI.forEach((k, i) => { if (k.ready) { guideTo(k, c, r * 1.05 + 120, i ? -1 : 1); k.hurry = 1.6; } });
+    anim = { kind: 'guide', t: 0, from: { ...cam }, c, r, slug };
+    try { history.pushState({ id: slug }, '', '#' + slug); } catch (e) {}
+  }
+  function goBack() {
+    if (id === 'works') { veil.style.transition = 'opacity .35s'; veil.style.opacity = 1; setTimeout(() => { location.href = '../#currently'; }, reduce ? 0 : 380); return; }
+    try { history.pushState({ id: 'works' }, '', location.pathname + location.search); } catch (e) {}
+    openScene('works', id);
+  }
+  backBtn.addEventListener('click', goBack);
+  function openScene(next, fromSlug) {
+    id = next; S = SCENES[next]; WW = S.W; WH = S.H; OBS = S.obs;
+    S.bow = S.bow || OBS.filter((o, i) => i < S.obs.length && (next === 'works' || (S.hits[i] && S.hits[i][0] === 'p')));
+    zoomR = null; stage.classList.remove('zoomed');
+    for (const w of [bg, fg]) { w.style.width = WW + 'px'; w.style.height = WH + 'px'; }
+    Object.assign(document.getElementById('sea').style, { left: -2 * WW + 'px', top: -2 * WH + 'px', width: 5 * WW + 'px', height: 5 * WH + 'px', backgroundSize: `${2 * WW}px ${2 * WH}px` });
+    content.src = S.img; content.alt = next === 'works' ? 'Works: lily pads for each project, each labelled with its name, the kind of work and the year.' : `${S.name} case study`;
+    document.title = (next === 'works' ? 'Works' : S.name) + ' · Lauren Young';
+    backBtn.textContent = next === 'works' ? 'back to currently' : 'back to works';
+    hint.textContent = next === 'works' ? 'scroll along the pond, then pick a pad' : 'scroll to follow the current, click any piece to see it up close';
+    sizeSpacer(); scrollTo(0, 0);
+    buildHits();
+    // open out of the pad you came through: its own title pad on a case study, or that project's pad on the landing
+    let pad = S.title;
+    if (next === 'works' && fromSlug) { const p = S.pads.find(q => q[0] === fromSlug); if (p) pad = p.slice(1); }
+    const c = [pad[0] + pad[2] / 2, pad[1] + pad[3] / 2], d = Math.min(pad[2], pad[3]);
+    const startCam = { s: Math.max(VW, VH) / (d * 0.45), x: c[0], y: c[1] };
+    Object.assign(cam, startCam);
+    KOI.forEach(k => { k.hurry = 1; if (k.ready) startLane(k, c[0] + (k.lane ? -200 : 500)); });
+    respawnAll();
+    anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 2.2 };
+    veil.style.transition = reduce ? 'none' : 'opacity .7s'; veil.style.opacity = 0;
+  }
+  addEventListener('popstate', () => { const h = location.hash.slice(1); const n = SCENES[h] && h !== 'works' ? h : 'works'; if (n !== id) openScene(n, id); });
+
+  function stepCam(dt) {
+    const tg = baseTarget();
+    hint.style.opacity = tg.p > 0.02 || zoomR ? 0 : 1;
+    if (anim && anim.kind === 'open') {
+      anim.t += dt; const u = easeIO(Math.min(1, anim.t / anim.dur));
+      Object.assign(cam, lerpCam(anim.from, tg, u));
+      if (anim.t >= anim.dur) anim = null;
+      return;
+    }
+    if (anim && anim.kind === 'guide') {
+      // the koi swim to the pad and the view drifts after them; once they're circling it, the view dives into the pad
+      anim.t += dt;
+      const heads = KOI.filter(k => k.ready).map(k => k.head || anim.c);
+      const near = heads.every(h => len(sub(h, anim.c)) < anim.r * 1.05 + 500);
+      if (!anim.dive && (near || anim.t > 2.6)) { anim.dive = anim.t; anim.at = { ...cam }; }
+      if (!anim.dive) {
+        const mid = heads.reduce((a, h) => add(a, mul(h, 1 / heads.length)), [0, 0]);
+        const goal = { x: anim.c[0] * 0.6 + mid[0] * 0.4, y: anim.c[1] * 0.6 + mid[1] * 0.4, s: anim.from.s * 1.25 };
+        const e = 1 - Math.exp(-dt * 2.2);
+        Object.assign(cam, lerpCam(cam, goal, e));
+      } else {
+        const v = Math.min(1, (anim.t - anim.dive) / 1.2), e = v * v * (3 - 2 * v) * 0.35 + v * v * v * 0.65;   // gathers speed as it plunges
+        Object.assign(cam, lerpCam(anim.at, { s: Math.max(VW, VH) / (anim.r * 2 * 0.45), x: anim.c[0], y: anim.c[1] }, e));
+        veil.style.transition = 'none'; veil.style.opacity = String(smooth(clamp((v - 0.55) / 0.45, 0, 1)));
+        koiK = 1 - smooth(clamp((v - 0.4) / 0.6, 0, 1));
+        if (v >= 1) { const slug = anim.slug; anim = null; koiK = 1; openScene(slug, null); }
+      }
+      return;
+    }
+    let goal = tg;
+    if (zoomR) goal = fitRect(zoomR, 0.92);
+    if (anim && anim.kind === 'zoom') {
+      anim.t += dt; const u = easeIO(Math.min(1, anim.t / anim.dur));
+      Object.assign(cam, lerpCam(anim.from, goal, u));
+      if (anim.t >= anim.dur) anim = null;
+    } else {
+      const e = 1 - Math.exp(-dt * 5);
+      Object.assign(cam, lerpCam(cam, goal, e));
+    }
+  }
+  // scrolling while a piece is up full screen puts it back
+  addEventListener('scroll', () => { if (zoomR && !(anim && anim.kind === 'zoom' && anim.t < 0.3)) unzoom(); }, { passive: true });
+  addEventListener('wheel', () => { if (zoomR && !(anim && anim.kind === 'zoom' && anim.t < 0.3)) unzoom(); }, { passive: true });
+  addEventListener('resize', resize);
+
+  // ---------- loop ----------
+  let last = performance.now(), kt = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const run = !still;
+    if (run) T += dt;
+    stepCam(dt);
+    flowK += ((zoomR ? 0 : 1) - flowK) * (1 - Math.exp(-dt * 6));
+    applyCam();
+    drawFlow(run, dt);
+    if (run) kt += dt;
+    for (const k of KOI) if (k.ready) pose(k, kt, run ? dt : 0);
+    drawKoi();
+    requestAnimationFrame(frame);
+  }
+  resize();
+  { const h = location.hash.slice(1); openScene(SCENES[h] && h !== 'works' ? h : 'works', null); }
+  window.__works = () => ({ id, cam: { ...cam }, anim: anim && anim.kind, zoom: !!zoomR, heads: KOI.map(k => k.head && k.head.map(Math.round)) });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
