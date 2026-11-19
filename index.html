@@ -458,7 +458,7 @@
       float m = 0.0;
       if (hu.x > 0.0 && hu.x < 1.0 && hu.y > 0.0 && hu.y < 1.0) m = texture2D(halo, hu).a * 0.5 * smoothstep(ovrY.x, ovrY.y, wpos.y);
       if (m > 0.0 && c.a > 0.001) c.rgb = mix(c.rgb, vec3(0.05, 0.40, 0.46) * c.a, m);
-      if (edge > 0.5) { float o = max(max(-spv.x, spv.x - 1440.0), max(-spv.y, spv.y - 1024.0)); c *= 1.0 - smoothstep(0.0, 160.0, o); }   // a page's own pads fade past its frame
+      if (edge > 0.5) { float o = max(max(-spv.x, spv.x - 1440.0), max(-spv.y, spv.y - 1024.0)); c *= 1.0 - smoothstep(0.0, 40.0, o); }   // a page's pads stay inside its frame
       gl_FragColor = c;
     }`;
   function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
@@ -486,13 +486,15 @@
     #else
     precision mediump float;
     #endif
-    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
+    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32];
     void main(){
       // one continuous pond: texture coords come from world position, mirrored past the image edge,
       // so a section's water can run on under the next one while it cross-fades
       vec2 tu = (wp - src.xy) / src.zw;
-      tu = 1.0 - abs(mod(tu, 2.0) - 1.0);           // mirrored again and again, so the water never runs out
+      if (rep > 0.5) tu = fract(tu);                // her water is made tileable, so it repeats with no seam
+      else tu = 1.0 - abs(mod(tu, 2.0) - 1.0);      // the art pond (with its painted pads) mirrors instead
       float a = smoothstep(fade.x, fade.y, wp.y) * (1.0 - smoothstep(fade.z, fade.w, wp.y)) * smoothstep(fadex.x, fadex.y, wp.x);
+      a = mix(a, 1.0, own);                          // the page you're on owns the whole window: one water, edge to edge
       vec2 q = wp / 1024.0;
       vec2 d = vec2(sin(q.y*7.0 + time*0.35) + sin((q.x+q.y)*11.0 - time*0.27),
                     cos(q.x*6.0 - time*0.31) + sin((q.x-q.y)*9.0 + time*0.22)) * 0.0016;
@@ -504,13 +506,14 @@
         float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
         w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
       d += w / vec2(1440.0, 1024.0);
-      if (mode == 3) {                                                     // lettering: stays crisp and still
-        float o = max(max(-sp.x, sp.x - 1440.0), max(-sp.y, sp.y - 1024.0)); // past her frame, a neighbouring page's words and photo fade away softly
-        gl_FragColor = texture2D(t, tu) * a * (1.0 - smoothstep(0.0, 160.0, o)); return; }
+      // past her frame the window shows only water: a neighbouring page's words, photo and pads stop at the frame edge
+      float o = max(max(-sp.x, sp.x - 1440.0), max(-sp.y, sp.y - 1024.0)), outK = smoothstep(0.0, 40.0, o);
+      if (mode == 3) { gl_FragColor = texture2D(t, tu) * a * (1.0 - outK); return; }      // lettering: stays crisp and still
       vec4 c = texture2D(t, tu + d);
       if (mode == 0) {                                                     // base water + drifting light
         float l = sin(q.x*5.0 + q.y*3.0 + sin(q.y*4.0 - time*0.2)*1.6 - time*0.18);
         c.rgb += vec3(0.8, 1.0, 1.0) * (min(glow, 1.5) * 0.045 + smoothstep(0.75, 1.0, l) * 0.035);
+        if (edgeK > 0.0) { a *= 1.0 - edgeK * outK; if (a <= 0.001) discard; }   // a later page's water (and the art pond's pads) stays out of this page's margins
         gl_FragColor = vec4(c.rgb, 1.0) * a;
       } else if (mode == 2) {                                              // white lines, added like linear dodge
         gl_FragColor = vec4(vec3(c.a * 0.15 * a), 0.0);
@@ -521,7 +524,7 @@
   const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
   const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
   const view = () => [camX - EXT[0] / camZ, cam - EXT[1] / camZ, camX + (1440 + EXT[0]) / camZ, cam + (1024 + EXT[1]) / camZ];
-  const uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
+  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
   const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
   function texFrom(img) {
@@ -543,17 +546,19 @@
   // no edge between the sections: the Landing water runs on below its frame and the About water fades in over it
   const BLEND = 300, NOFADE = [-1e6, -1e6, 1e6, 1e6];
   RECT.pond = RECT.base;
-  const DRAW = { pond: [-8000, -6000, 30000, 20000], base: [-700, 0, 2840, AY + BLEND], texture: [-700, 0, 2840, AY + BLEND], lines: [-700, 0, 2840, AY + BLEND], aboutWater: [-700, AY - BLEND, 2840, 1024 * AS + BLEND] };   // runs past the frame edges (mirrored) for the pulled-back view
+  const DRAW = { pond: [-8000, -6000, 30000, 20000], base: [-4000, -3000, 9440, AY + BLEND + 3000], texture: [-4000, -3000, 9440, AY + BLEND + 3000], lines: [-4000, -3000, 9440, AY + BLEND + 3000], aboutWater: [-4000, AY - BLEND, 9440, 1024 * AS + BLEND + 3000] };   // runs past the frame edges (mirrored) for the pulled-back view
   RECT.worksWater = [WX, AY, 1440 * AS, 1024 * AS]; RECT.worksTop = RECT.worksWater.slice();
   RECT.artWater = [GX, AY, GW * AS, GH * AS]; RECT.artTop = [GX + 930 * AS, AY + 250 * AS, 1440 * AS, GH * AS];   // her "fine art" lettering sits in the open water right of the lotus lockup
-  DRAW.worksWater = [WX - BLEND, AY - BLEND, 1440 * AS + 2 * BLEND, 1024 * AS + 2 * BLEND];
+  DRAW.worksWater = [WX - 3000, AY - 3000, 1440 * AS + 6000, 1024 * AS + 6000];   // FADEX/FADE still blend it in during the swim over
   DRAW.artWater = [GX, AY - BLEND, GW * AS + 900, GH * AS + 900];   // starts at its own edge: a mirrored copy of her big pads used to spill under the tbd pad on currently
   const FADEX = { worksWater: [WX - BLEND, WX + BLEND, 0, 0], artWater: [GX, GX + 140, 0, 0] };   // each page's water flows in sideways over the last
   const FADE = { worksWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], artWater: [AY - BLEND, AY + BLEND, 1e6, 1e6], texture: [-1e6, -1e6, AY - BLEND, AY + BLEND], lines: [-1e6, -1e6, AY - BLEND, AY + BLEND], aboutWater: [AY - BLEND, AY + BLEND, 1e6, 1e6] };
   function drawLayer(name, mode) {
     if (!LAYER[name]) return;
     const sr = RECT[name], r = DRAW[name] || sr, vw = view(); if (r[1] > vw[3] || r[1] + r[3] < vw[1]) return;
-    gl.useProgram(wprog); gl.uniform4fv(wU.r, r); gl.uniform4fv(wU.sr, sr); gl.uniform4fv(wU.f, FADE[name] || NOFADE); gl.uniform4fv(wU.fx, FADEX[name] || [-1e6, -9e5, 0, 0]);
+    gl.useProgram(wprog); gl.uniform4fv(wU.r, r); gl.uniform4fv(wU.sr, sr); gl.uniform4fv(wU.f, FADE[name] || NOFADE); gl.uniform4fv(wU.fx, FADEX[name] || [-1e6, -9e5, 0, 0]); { const oi = WATER_ORDER.indexOf(ownerShown), ni = WATER_ORDER.indexOf(name);
+      gl.uniform1f(wEdge, ni > oi && oi >= 0 ? ownerK : 0); gl.uniform1f(wOwn, name === ownerShown ? ownerK : 0); }
+    gl.uniform1f(wRep, name === 'artWater' ? 0 : 1);
     gl.useProgram(wprog); gl.disableVertexAttribArray(aUV);
     gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(wAP); gl.vertexAttribPointer(wAP, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(wU.m, mode); gl.bindTexture(gl.TEXTURE_2D, LAYER[name]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -810,7 +815,8 @@
   window.__cam = () => [t, camX, cam, camZ, page, camAnim && camAnim.p, camAnim && camAnim.t, scrollY].map(v => typeof v === "number" ? +v.toFixed(3) : v);
   window.__dbg = () => KOI.map(k => [k.name, Math.round(k.speed * k.sc * k.boost), k.trans ? 'curve' : 'loop', k.boost.toFixed(2), (k.space||1).toFixed(2), k.plan && k.td ? Math.round(k.plan.u - (k.td[k.td.length-1] - k.dist)) % Math.round(k.plan.loop.P) : 0].join(' ')).join(' | ');
   window.__heads = () => KOI.map(k => k.tp ? trackAt(k, k.dist).p.map(Math.round) : null).concat([ART_OVAL.P, koiDY]);
-  let koiDX = 0, koiDY = 0, koiT = [0, 0], lastScrollT = -1e9, mouse = null, lastY = 0, page = 'home', home = [0, 0, 1], artX = 0, camAnim = null;
+  const WATER_ORDER = ['base', 'aboutWater', 'worksWater', 'artWater'];   // draw order of the pages' water
+  let ownerShown = 'base', ownerK = 0, koiDX = 0, koiDY = 0, koiT = [0, 0], lastScrollT = -1e9, mouse = null, lastY = 0, page = 'home', home = [0, 0, 1], artX = 0, camAnim = null;
   const pondH = () => frameRect().height || innerHeight;
   function camTarget() {
     if (page === 'works') return [WX, AY, Z];
@@ -1060,6 +1066,11 @@
     const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
     if (running || t === 0 || dirty) { dirty = false;
       t += dt; stepCam(dt); placeUI();
+      { // the page you're on owns the window: its water fills every margin and later pages' water stays out of them
+        const T = page === 'works' ? 'worksWater' : page === 'art' ? 'artWater' : scrollY > innerHeight * 0.5 ? 'aboutWater' : 'base';
+        const g = T !== ownerShown || camAnim ? 0 : 1, k = dt ? 1 - Math.exp(-dt * 4) : 1;
+        ownerK += (g - ownerK) * k; if (Math.abs(g - ownerK) < 0.003) ownerK = g; else dirty = true;
+        if (T !== ownerShown && ownerK < 0.01) { ownerShown = T; ownerK = 0; dirty = true; } }
       { const tx = 0;                                 // the koi keep to their own path between the paintings
         koiDX += (tx - koiDX) * (dt ? 1 - Math.exp(-dt * 3) : 1); if (Math.abs(tx - koiDX) > 0.5) dirty = true; }
       const koiCam = on => gl.uniform3f(uCam, camX - (on ? koiDX : 0), cam - (on ? koiDY : 0), camZ);
