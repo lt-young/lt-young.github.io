@@ -922,15 +922,15 @@
       k.trans = { d0: k.dist, d1: k.dist + X, len: X, sc0: k.sc, sc1: k.sc, guide: true }; });
     dirty = true;
   }
-  // the old words are swept on downstream while the new ones ride in behind them, both moving at once like one current
+  // the old words lift up and away while the new ones rise in beneath them, both moving at once
   function stepAbout(dt) {
     stepT += dt; const IN = 1.3, OUT = 1.0;
     const ki = easeIO(Math.min(1, stepT / IN)), ko = easeIO(Math.min(1, stepT / OUT));
     for (let i = 0; i < 4; i++) {
       const r = STEP_R[i]; let k = 0, off = 0;
-      if (i === aboutStep) { k = Math.min(1, ki * 1.15); off = -(1 - ki) * 300 * AS * stepDir; }
-      else if (i === stepPrev && ko < 1) { k = 1 - ko; off = ko * 340 * AS * stepDir; }
-      stepK[i] = k; RECT['aboutStep' + i] = off ? [r[0] + off, r[1] + Math.sin(Math.PI * Math.abs(off) / (340 * AS)) * 18 * AS * (i === aboutStep ? -1 : 1), r[2], r[3]] : r;
+      if (i === aboutStep) { k = Math.min(1, ki * 1.15); off = (1 - ki) * 220 * AS * stepDir; }     // new words rise in from below (from above going back)
+      else if (i === stepPrev && ko < 1) { k = 1 - ko; off = -ko * 240 * AS * stepDir; }            // the old ones lift up and away at the same time
+      stepK[i] = k; RECT['aboutStep' + i] = off ? [r[0], r[1] + off, r[2], r[3]] : r;
     }
     if (stepT < IN) dirty = true;
   }
