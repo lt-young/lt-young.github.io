@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lauren Young</title>
+<meta name="description" content="Save my contact, see what I make, or leave me yours.">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Lauren Young">
+<meta property="og:description" content="Save my contact, see what I make, or leave me yours.">
+<meta property="og:image" content="https://lt-young.github.io/about-photo.png">
+<link rel="icon" href="../nav-icon.png" type="image/png">
+<meta name="theme-color" content="#0a6f80">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap">
+<style>
+  @font-face { font-family: "Astoria"; src: url(../fonts/astoria.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Melodrame"; src: url(../fonts/melodrame.woff2) format("woff2"); font-display: swap; }
+  :root {
+    --pond: oklch(0.47 0.08 210);
+    --ink: oklch(0.98 0.02 185);
+    --ink-soft: oklch(0.98 0.02 185 / 0.78);
+    --paper: oklch(0.965 0.018 85);
+    --paper-ink: oklch(0.32 0.06 215);
+    --paper-soft: oklch(0.32 0.06 215 / 0.66);
+    --line: rgb(11 74 85 / 0.16);
+    --koi: oklch(0.70 0.17 50);
+    --shade: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 10px rgb(0 40 50 / 0.35);
+    --font-ui: "Melodrame", "Crimson Text", Georgia, serif;
+    --r: 22px; --pad: 18px;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--pond); }
+  body {
+    margin: 0; min-height: 100dvh; color: var(--ink); font-family: var(--font-ui); font-size: 17px; line-height: 1.4;
+    background: var(--pond) url(../works-water.png?v=2) 0 0 / 720px auto repeat;
+    animation: drift 90s linear infinite;
+  }
+  @keyframes drift { to { background-position: 720px 512px; } }
+  #koi { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+  a { color: inherit; }
+
+  .brand {
+    position: absolute; top: 12px; left: 14px; z-index: 3; display: flex; align-items: flex-start; gap: 4px;
+    text-decoration: none; font: 400 30px/1 "Astoria", cursive; text-shadow: var(--shade);
+  }
+  .brand img { width: 36px; height: auto; filter: drop-shadow(0 2px 4px rgb(0 30 40 / 0.4)); transition: rotate .6s cubic-bezier(.2,.7,.2,1); }
+  .brand:hover img { rotate: -8deg; }
+  .brand span { padding-top: 3px; }
+
+  main { position: relative; z-index: 1; width: min(440px, 100% - 32px); margin: 0 auto; padding: 84px 0 56px; }
+
+  /* the card's face: her photo, edges melting into the water like on About */
+  .hero { display: grid; justify-items: center; text-align: center; }
+  .pad { width: 200px; }
+  .pad > img.me { display: block; width: 100%; height: auto; }
+  h1 { margin: 10px 0 0; font: 400 62px/1 "Astoria", cursive; text-shadow: var(--shade); letter-spacing: 0; }
+  .role { margin: 8px 0 0; font-size: 18px; color: var(--ink-soft); text-shadow: var(--shade); }
+  .role b { display: block; font-weight: 400; color: var(--ink); }
+
+  /* action row: one clear primary, then small stones */
+  .actions { margin-top: 22px; display: grid; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px;
+    border-radius: 999px; font: 400 17px/1 var(--font-ui); letter-spacing: 0.02em; text-decoration: none; cursor: pointer;
+    border: 1px solid rgb(255 255 255 / 0.28); background: oklch(0.33 0.06 215); color: var(--ink);
+    transition: translate .2s, background-color .2s;
+  }
+  .btn:hover { translate: 0 -1px; background: oklch(0.37 0.065 215); }
+  .btn:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--koi); outline-offset: 2px; }
+  .btn.primary { background: var(--paper); color: var(--paper-ink); border-color: transparent; font-size: 18px; }
+  .btn.primary:hover { background: oklch(0.99 0.012 85); }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .btn svg { width: 17px; height: 17px; flex: none; stroke: currentColor; stroke-width: 1.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .copied { font-size: 15px; color: var(--ink-soft); text-align: center; min-height: 1.4em; margin: 2px 0 0; text-shadow: var(--shade); }
+
+  /* paper notes floating on the pond */
+  .note {
+    margin-top: 28px; background: var(--paper); color: var(--paper-ink); border-radius: var(--r); padding: var(--pad);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 12px 28px rgb(0 40 50 / 0.28);
+  }
+  .note h2 { margin: 0; font: 400 38px/1 "Astoria", cursive; color: var(--paper-ink); }
+  .note p.sub { margin: 6px 0 14px; color: var(--paper-soft); font-size: 16px; }
+  label { display: block; font-size: 14px; letter-spacing: 0.03em; color: var(--paper-soft); margin: 10px 0 4px; }
+  label i { font-style: normal; opacity: .75; }
+  input {
+    width: 100%; height: 44px; padding: 0 12px; border-radius: calc(var(--r) - var(--pad) + 6px);
+    border: 1px solid var(--line); background: oklch(0.99 0.008 85); color: var(--paper-ink);
+    font: 400 17px/1 "Crimson Text", Georgia, serif;
+  }
+  input::placeholder { color: rgb(11 74 85 / 0.38); }
+  .send { margin-top: 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .send .btn { background: var(--paper-ink); color: var(--paper); border-color: transparent; }
+  .send .btn.alt { background: transparent; color: var(--paper-ink); border-color: var(--line); }
+  .err { color: oklch(0.52 0.16 35); font-size: 15px; margin: 8px 0 0; min-height: 1.3em; }
+
+  .next { margin-top: 28px; }
+  .next h2 { margin: 0 0 10px; font: 400 38px/1 "Astoria", cursive; text-shadow: var(--shade); }
+  .next ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .next a {
+    display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 12px; padding: 10px 16px 10px 10px;
+    border-radius: var(--r); background: var(--paper); color: var(--paper-ink); text-decoration: none;
+    box-shadow: 0 10px 22px rgb(0 40 50 / 0.24); transition: translate .2s;
+  }
+  .next a:hover { translate: 0 -2px; }
+  .next a img { width: 52px; height: 52px; object-fit: contain; border-radius: calc(var(--r) - 10px); }
+  .next a b { display: block; font-weight: 400; font-size: 19px; }
+  .next a span { display: block; font-size: 15px; color: var(--paper-soft); line-height: 1.3; margin-top: 2px; }
+  .next a svg { width: 16px; height: 16px; stroke: var(--paper-soft); stroke-width: 1.4; fill: none; stroke-linecap: round; }
+
+  .qrbtn { margin: 26px auto 0; display: flex; }
+  footer { position: relative; z-index: 1; text-align: center; padding: 0 16px 28px; font: 400 26px/1 "Astoria", cursive; color: var(--ink-soft); text-shadow: var(--shade); }
+
+  /* QR: a paper square that surfaces from the water */
+  dialog { border: 0; padding: 0; background: transparent; max-width: none; }
+  dialog::backdrop { background: rgb(4 40 48 / 0.62); }
+  .qr { width: min(340px, 86vw); background: var(--paper); color: var(--paper-ink); border-radius: 28px; padding: 22px; text-align: center; box-shadow: 0 24px 60px rgb(0 30 40 / 0.45); }
+  dialog[open] .qr { animation: surface .45s cubic-bezier(.2,.8,.2,1); }
+  @keyframes surface { from { translate: 0 18px; scale: .96; opacity: 0; } }
+  .qr img { width: 100%; aspect-ratio: 1; display: block; border-radius: 6px; }
+  .qr p { margin: 12px 0 14px; font: 400 32px/1 "Astoria", cursive; }
+  .qr .btn { background: var(--paper-ink); color: var(--paper); border-color: transparent; width: 100%; }
+
+  @media (prefers-reduced-motion: reduce) { body { animation: none; } dialog[open] .qr { animation: none; } }
+  @media (max-width: 380px) { h1 { font-size: 52px; } .row { grid-template-columns: 1fr 1fr 1fr; } .btn { padding: 0 10px; } }
+</style>
+</head>
+<body>
+<canvas id="koi" aria-hidden="true"></canvas>
+<a class="brand" href="../"><img src="../lotus-nav.png" alt=""><span>Lauren Young</span></a>
+
+<main id="main">
+  <section class="hero">
+    <div class="pad">
+      <img class="me" src="../about-photo.png" alt="Lauren Young smiling, holding one of her sculptures">
+    </div>
+    <h1>Lauren Young</h1>
+    <p class="role"><b>Artist and designer</b>Iovine and Young Academy @ USC</p>
+  </section>
+
+  <div class="actions">
+    <a class="btn primary" href="lauren-young.vcf" download>Save my contact</a>
+    <div class="row">
+      <a class="btn" href="sms:+19498384531"><svg viewBox="0 0 20 20"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h9A2.5 2.5 0 0 1 17 5.5v6a2.5 2.5 0 0 1-2.5 2.5H8l-4 3v-3.2A2.5 2.5 0 0 1 3 11.5z"/></svg>Text</a>
+      <a class="btn" href="mailto:ltyoung@usc.edu"><svg viewBox="0 0 20 20"><rect x="2.5" y="4.5" width="15" height="11" rx="2"/><path d="m3.5 6 6.5 5 6.5-5"/></svg>Email</a>
+      <button class="btn" type="button" id="copy"><svg viewBox="0 0 20 20"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></svg>Copy</button>
+    </div>
+    <p class="copied" id="copied" aria-live="polite"></p>
+  </div>
+
+  <form class="note" id="swap" novalidate>
+    <h2>Swap contacts</h2>
+    <p class="sub">Leave your details and they come straight to my phone.</p>
+    <label for="f-name">Name</label>
+    <input id="f-name" name="name" autocomplete="name" required>
+    <label for="f-email">Email</label>
+    <input id="f-email" name="email" type="email" autocomplete="email">
+    <label for="f-phone">Phone <i>(optional)</i></label>
+    <input id="f-phone" name="phone" type="tel" autocomplete="tel">
+    <label for="f-met">Where we met <i>(optional)</i></label>
+    <input id="f-met" name="met" placeholder="a show, a class, a hackathon">
+    <div class="send">
+      <button class="btn" type="submit">Send my details</button>
+      <button class="btn alt" type="button" id="by-mail">By email</button>
+    </div>
+    <p class="err" id="err" aria-live="polite"></p>
+  </form>
+
+  <nav class="next" aria-label="Where to go next">
+    <h2>Where to go next</h2>
+    <ul>
+      <li><a href="../"><img src="../koi-orange.png" alt=""><div><b>My pond</b><span>Everything I make, at lt-young.github.io</span></div><svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5"/></svg></a></li>
+      <li><a href="../#currently"><img src="../lilypad2-full.png" alt=""><div><b>Works</b><span>Design case studies</span></div><svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5"/></svg></a></li>
+      <li><a href="../#fine-art"><img src="../lotus-nav.png" alt=""><div><b>Fine art</b><span>Paintings and sculpture</span></div><svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5"/></svg></a></li>
+      <li><a href="../works/#standard-physics"><img src="../koi-painted.png" alt=""><div><b>Standard Physics</b><span>Brand identity for a startup that flags ADA problems</span></div><svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5"/></svg></a></li>
+    </ul>
+  </nav>
+
+  <button class="btn qrbtn" type="button" id="show-qr">Show my QR code</button>
+</main>
+<footer>always swimming forward</footer>
+
+<dialog id="qr" aria-label="QR code">
+  <div class="qr">
+    <img src="qr.svg" alt="QR code that opens lt-young.github.io/card">
+    <p>scan to open my card</p>
+    <button class="btn" type="button" id="qr-done">Done</button>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const EMAIL = 'ltyoung@usc.edu', PHONE = '+19498384531';
+  const $ = id => document.getElementById(id);
+
+  // copy email
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(EMAIL); $('copied').textContent = EMAIL + ' copied'; }
+    catch { $('copied').textContent = EMAIL; }
+    clearTimeout($('copy').t); $('copy').t = setTimeout(() => $('copied').textContent = '', 2600);
+  });
+
+  // swap contacts: no server on this site, so the form writes the message for them in Messages or Mail
+  const form = $('swap');
+  function body() {
+    const v = n => form.elements[n].value.trim();
+    if (!v('name')) { $('err').textContent = 'Add your name so I know who you are.'; form.elements.name.focus(); return null; }
+    if (!v('email') && !v('phone')) { $('err').textContent = 'Add an email or a phone number so I can reach you.'; form.elements.email.focus(); return null; }
+    $('err').textContent = '';
+    return [`Hi Lauren, it's ${v('name')}.`, v('met') && `We met at ${v('met')}.`, v('email') && `Email: ${v('email')}`, v('phone') && `Phone: ${v('phone')}`].filter(Boolean).join('\n');
+  }
+  form.addEventListener('submit', e => {
+    e.preventDefault(); const b = body(); if (!b) return;
+    const sep = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent) ? '&' : '?';
+    location.href = `sms:${PHONE}${sep}body=${encodeURIComponent(b)}`;
+  });
+  $('by-mail').addEventListener('click', () => {
+    const b = body(); if (!b) return;
+    location.href = `mailto:${EMAIL}?subject=${encodeURIComponent('Contact from ' + form.elements.name.value.trim())}&body=${encodeURIComponent(b)}`;
+  });
+
+  // QR
+  const dlg = $('qr');
+  $('show-qr').addEventListener('click', () => dlg.showModal());
+  $('qr-done').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+
+  // two koi circling the card, under everything
+  const cv = $('koi'), ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fish = [
+    { src: '../koi-orange.png', face: -0.70, len: 230, t: 0, sp: 0.055, ph: 0 },     // face: angle the head points in the image
+    { src: '../koi-painted.png', face: 2.69, len: 210, t: 0, sp: 0.047, ph: 3.1 },
+  ];
+  fish.forEach(f => { f.img = new Image(); f.img.src = f.src; });
+  let W = 0, H = 0, dpr = 1;
+  function fit() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
+  fit(); addEventListener('resize', fit);
+  // a slow loop around the column, wider than the card so the koi slip past its edges
+  function path(f, t) {
+    const a = t + f.ph, rx = W < 600 ? W * 0.36 : Math.max(W * 0.42, 260), ry = H * 0.40;
+    return [W / 2 + Math.cos(a) * rx + Math.sin(a * 2.3) * 40, H / 2 + Math.sin(a) * ry + Math.cos(a * 1.7) * 50];
+  }
+  let last = null;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    for (const f of fish) {
+      if (!f.img.complete || !f.img.naturalWidth) continue;
+      f.t += dt * f.sp * (reduce ? 0 : 1) * (Math.min(W, 900) / 600);
+      const [x, y] = path(f, f.t), [x2, y2] = path(f, f.t + 0.01);
+      const head = Math.atan2(y2 - y, x2 - x) + Math.sin(now / 420 + f.ph) * 0.06;   // a little tail sway
+      const s = Math.min(1, W / 700) * f.len / Math.hypot(f.img.naturalWidth, f.img.naturalHeight) * 1.25;
+      const w = f.img.naturalWidth * s, h = f.img.naturalHeight * s;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(head - f.face);
+      ctx.shadowColor = 'rgba(0,35,45,0.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 10;
+      ctx.drawImage(f.img, -w / 2, -h / 2, w, h); ctx.restore();
+    }
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
