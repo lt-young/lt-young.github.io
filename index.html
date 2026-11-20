@@ -189,6 +189,7 @@
     <button id="follow" class="padlink" type="button" aria-label="follow the current" hidden></button>
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
     <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
+    <a id="contactpad" class="padlink" href="card/" aria-label="contact" hidden></a>
   </div>
   <div class="chrome">
     <div id="pull" aria-hidden="true"><i></i></div>
@@ -960,6 +961,7 @@
   }
   window.__about = () => [aboutStep, stepK.map(v => +v.toFixed(2)), leafCarry.toFixed(2)];
   artPad.addEventListener('click', () => go('art', true));
+  const contactPad = document.getElementById('contactpad');   // her middle pad on currently (was tbd) opens the contact card
   // her Works pad: the koi swim over and circle it, then the view dives in and the Works pond opens
   const worksPad = document.getElementById('workspad');
   worksPad.addEventListener('click', () => {
@@ -1086,6 +1088,8 @@
     const q = Wk(1222, 740);   // her "Fine Art" pad, bottom right on currently (Figma)
     place(artPad, q[0] - 165 * AS, q[1] - 165 * AS, 330 * AS, 330 * AS, page === 'works' && !camAnim);
     place(worksPad, WORKS_PAD[0] - 160 * AS, WORKS_PAD[1] - 160 * AS, 320 * AS, 320 * AS, page === 'works' && !camAnim);
+    const cq = Wk(928, 494);
+    place(contactPad, cq[0] - 120 * AS, cq[1] - 120 * AS, 240 * AS, 240 * AS, page === 'works' && !camAnim);
     floatPieces();
   }
   let floatT = null;
@@ -1232,7 +1236,7 @@
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
     aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=1',
-    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=2', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
+    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=3', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
   KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });
