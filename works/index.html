@@ -45,6 +45,12 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 .hint{transition:opacity .6s}
 .soon{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .4s;pointer-events:none}
 [hidden]{display:none !important}
+/* the koi say what to do next: a small bubble beside the koi nearest the middle, quiet as soon as you act */
+#koisay{position:fixed;left:0;top:0;z-index:4;margin:0;pointer-events:none;white-space:nowrap;font-size:16px;background:rgb(6 40 52 / 0.8);box-shadow:0 2px 10px rgb(0 30 40 / 0.25);opacity:0;translate:-50% -100%;transition:opacity .45s ease}
+#koisay::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;translate:-50% 0;rotate:45deg;background:rgb(6 40 52 / 0.8);border-right:1px solid var(--chip-line);border-bottom:1px solid var(--chip-line)}
+#koisay.on{opacity:1}
+#koisay.below{translate:-50% 0}
+#koisay.below::after{bottom:auto;top:-6px;rotate:225deg}
 </style>
 </head>
 <body>
@@ -66,6 +72,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   <button class="chip still" id="still" type="button" aria-pressed="false">still the water</button>
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
+<p class="chip" id="koisay" role="status" aria-live="polite"></p>
 
 <script src="scenes.js?v=8"></script>
 <script>
@@ -628,6 +635,29 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   { const h = location.hash.slice(1), first = SCENES[h] && h !== 'works' ? h : 'works';
     veil.style.transition = 'none'; veil.style.opacity = 1; anim = { kind: 'cross' };     // arriving from the dive on currently: start on the pad green
     Promise.all([loadImg(SCENES[first].img), loadImg(WATER)]).then(() => { anim = null; openScene(first, null); }); }
+  // ---- the koi talk: after a quiet moment, the koi nearest the middle tells you what to do here; any scroll, key or click hushes it
+  { const say = document.getElementById('koisay');
+    let quiet = performance.now(), shown = '';
+    const hush = () => { quiet = performance.now(); if (shown) { shown = ''; say.classList.remove('on'); } };
+    for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown', 'scroll']) addEventListener(ev, hush, { passive: true });
+    const line = () => anim ? '' : zoomR ? 'click anywhere to step back' : id === 'works' ? 'click a lily pad to open it'
+      : scrollP() < 0.05 ? 'scroll to follow the current' : 'click a piece to see it up close';
+    const tick = () => {
+      requestAnimationFrame(tick);
+      const want = performance.now() - quiet > (shown ? 0 : 2600) ? line() : '';
+      if (want !== shown) { shown = want; if (want) say.textContent = want; say.classList.toggle('on', !!want); }
+      if (!shown) return;
+      let best = null;
+      for (const k of KOI) { if (!k.ready || !k.tp || koiK < 0.5) continue;
+        const a = trackAt(k, k.dist), q = toScreen(a.p[0], a.p[1]), d = Math.hypot(q[0] - VW / 2, q[1] - VH / 2); if (!best || d < best.d) best = { q, d, t: a.tan }; }
+      // the words come out just ahead of its mouth: above when it swims up, below when it swims down, so they never sit on the koi
+      const bw = say.offsetWidth, bh = say.offsetHeight, below = !!best && best.t[1] > 0.2;
+      const q = best ? [best.q[0] + best.t[0] * 60, best.q[1] + best.t[1] * 60 + (below ? 14 : -14)] : [VW / 2, VH * 0.75];
+      say.classList.toggle('below', below);
+      const x = Math.max(16 + bw / 2, Math.min(VW - 16 - bw / 2, q[0])), y = below ? Math.max(70, Math.min(VH - 70 - bh, q[1])) : Math.max(70 + bh, Math.min(VH - 70, q[1]));
+      say.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    };
+    requestAnimationFrame(tick); }
   window.__works = () => ({ id, cam: { ...cam }, anim: anim && anim.kind, zoom: !!zoomR, heads: KOI.map(k => k.head && k.head.map(Math.round)) });
   requestAnimationFrame(frame);
 })();
