@@ -48,6 +48,7 @@
   #bub { pointer-events: none; z-index: 1; }
   #snap { pointer-events: none; will-change: transform, opacity; }
   #snap[hidden] { display: none; }
+  #padveil { position: fixed; inset: 0; background: oklch(0.38 0.11 150); opacity: 0; pointer-events: none; z-index: 50; }   /* the Works pad green the dive sinks into */
   .bar {
     position: absolute; right: 2%; bottom: 2.4%; z-index: 2;
     display: flex; gap: 8px; align-items: center;
@@ -181,6 +182,7 @@
 
 </head>
 <body>
+<div id="padveil" aria-hidden="true"></div>
 <div class="stage">
   <div class="pond" id="pond"><canvas id="c" width="1440" height="1024" role="img" aria-label="welcome to my Current, with two koi swimming an oval around the words. Scrolling down follows the koi into the About section: hi, I'm Lauren"></canvas>
     <div id="tiles" aria-label="fine art pieces"></div>
@@ -868,11 +870,12 @@
         dirty = true; return;
       }
       if (A0.href) {                                  // dive into the Works pad, then open the Works pond out of its own Works pad
-        const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u);
+        const u = Math.min(1, A0.t / A0.dur), e = 1 - Math.cos(u * Math.PI / 2);   // sinks in at an even pace and carries on into the Works pond, which opens out of its pad
+        padVeil.style.opacity = String(Math.max(0, Math.min(1, (u - 0.6) / 0.4)) ** 2 * (3 - 2 * Math.max(0, Math.min(1, (u - 0.6) / 0.4))));
         const z = Z * Math.pow(A0.zoom, e), f = (1 / Z - 1 / z) / (1 / Z - 1 / (Z * A0.zoom));
         const c = [A0.c0[0] + (A0.p0[0] - A0.c0[0]) * f, A0.c0[1] + (A0.p0[1] - A0.c0[1]) * f];
         camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
-        if (u >= 1 && !A0.gone) { A0.gone = true; location.href = A0.href; }
+        if (u >= 1 && !A0.gone) { A0.gone = true; location.href = A0.href; }   // the Works pond starts on this same pad green
         dirty = true; return;
       }
       if (!A0.cut) {
@@ -960,15 +963,15 @@
   artPad.addEventListener('click', () => go('art', true));
   const contactPad = document.getElementById('contactpad');   // her middle pad on currently (was tbd) opens the contact card
   // her Works pad: the koi swim over and circle it, then the view dives in and the Works pond opens
-  const worksPad = document.getElementById('workspad');
+  const worksPad = document.getElementById('workspad'), padVeil = document.getElementById('padveil');
   worksPad.addEventListener('click', () => {
     if (camAnim || page !== 'works') return;
     retarget('worksPad', running);
     const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    camAnim = { zoom: 4, dur: quick ? 0.05 : 0.8, t: 0, p0: WORKS_PAD, wait: running && !quick, href: 'works/', c0: [camX + 720 / camZ, cam + 512 / camZ] };
+    camAnim = { zoom: 4, dur: quick ? 0.05 : 0.85, t: 0, p0: WORKS_PAD, wait: false, href: 'works/', c0: [camX + 720 / camZ, cam + 512 / camZ] };
     dirty = true;
   });
-  addEventListener('pageshow', e => { if (e.persisted && camAnim && camAnim.href) { camAnim = null; retarget('works', false); dirty = true; } });   // back from the Works pond: settle on currently again      // the koi swim off to the right and the view follows them downstream to the art pond
+  addEventListener('pageshow', e => { padVeil.style.opacity = '0'; if (e.persisted && camAnim && camAnim.href) { camAnim = null; retarget('works', false); dirty = true; } });   // back from the Works pond: settle on currently again      // the koi swim off to the right and the view follows them downstream to the art pond
   // jump anywhere: home (landing) and About are scroll spots on the first page; currently and fine art slide across
   function navTo(spot, step) {
     if (spot === 'works' || spot === 'art') return go(spot, true);
