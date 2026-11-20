@@ -468,8 +468,8 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   }
   let soonT = 0;
   function comingSoon(name) { soon.textContent = `${name} is still being finished`; soon.style.opacity = 1; clearTimeout(soonT); soonT = setTimeout(() => soon.style.opacity = 0, 2200); }
-  function zoomTo(r) { zoomR = r; stage.classList.add('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.9, from: { ...cam } }; }
-  function unzoom() { if (!zoomR) return; zoomR = null; stage.classList.remove('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.8, from: { ...cam } }; }
+  function zoomTo(r) { zoomR = r; stage.classList.add('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.55, from: { ...cam } }; }
+  function unzoom() { if (!zoomR) return; zoomR = null; stage.classList.remove('zoomed'); anim = { kind: 'zoom', t: 0, dur: reduce ? 0.01 : 0.5, from: { ...cam } }; }
   stage.addEventListener('click', () => unzoom());
   addEventListener('keydown', e => { if (e.key === 'Escape') unzoom(); });
 
@@ -550,11 +550,11 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     let pad = S.title;
     if (next === 'works' && fromSlug) { const p = S.pads.find(q => q[0] === fromSlug); if (p) pad = p.slice(1); }
     const c = [pad[0] + pad[2] / 2, pad[1] + pad[3] / 2], d = Math.min(pad[2], pad[3]);
-    const startCam = { s: Math.max(VW, VH) / (d * 0.45), x: c[0], y: c[1] };
+    const startCam = { s: Math.min(Math.max(VW, VH) / (d * 1.1), baseTarget().s * 2.2), x: c[0], y: c[1] };   // opens from just inside the pad, not from deep within it
     Object.assign(cam, startCam);
     KOI.forEach(k => { k.hurry = 1; if (k.ready) startLane(k, c[0] + (k.lane ? -200 : 500)); });
     respawnAll(); layLeaves();
-    anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 2.2 };
+    anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 1.0 };
     veil.style.transition = reduce ? 'none' : 'opacity .7s'; veil.style.opacity = 0;
   }
   // between pages without a dive (back, browser history): the pond dims to the pad green, the next page loads, and it opens out of its pad
@@ -580,15 +580,15 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       anim.t += dt;
       const heads = KOI.filter(k => k.ready).map(k => k.head || anim.c);
       const near = heads.every(h => len(sub(h, anim.c)) < anim.r * 1.05 + 500);
-      if (!anim.dive && (near || anim.t > 2.6)) { anim.dive = anim.t; anim.at = { ...cam }; }
+      if (!anim.dive && (near || anim.t > 0.8 || reduce)) { anim.dive = anim.t; anim.at = { ...cam }; }
       if (!anim.dive) {
         const mid = heads.reduce((a, h) => add(a, mul(h, 1 / heads.length)), [0, 0]);
-        const goal = { x: anim.c[0] * 0.6 + mid[0] * 0.4, y: anim.c[1] * 0.6 + mid[1] * 0.4, s: anim.from.s * 1.25 };
+        const goal = { x: anim.c[0], y: anim.c[1], s: anim.from.s * 1.1 };   // settle on the pad, no chasing the koi around
         const e = 1 - Math.exp(-dt * 2.2);
         Object.assign(cam, lerpCam(cam, goal, e));
       } else {
-        const v = Math.min(1, (anim.t - anim.dive) / 1.2), e = v * v * (3 - 2 * v) * 0.35 + v * v * v * 0.65;   // gathers speed as it plunges
-        Object.assign(cam, lerpCam(anim.at, { s: Math.max(VW, VH) / (anim.r * 2 * 0.45), x: anim.c[0], y: anim.c[1] }, e));
+        const v = Math.min(1, (anim.t - anim.dive) / (reduce ? 0.01 : 0.75)), e = v * v * (3 - 2 * v);   // a short, even dive
+        Object.assign(cam, lerpCam(anim.at, { s: Math.max(VW, VH) / (anim.r * 2 * 0.9), x: anim.c[0], y: anim.c[1] }, e));
         veil.style.transition = 'none'; veil.style.opacity = String(smooth(clamp((v - 0.55) / 0.45, 0, 1)));
         koiK = 1 - smooth(clamp((v - 0.4) / 0.6, 0, 1));
         if (v >= 1 && !anim.wait) { const slug = anim.slug; anim.wait = true; loadImg(SCENES[slug].img).then(() => { anim = null; koiK = 1; openScene(slug, null); }); }
