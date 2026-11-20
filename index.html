@@ -128,15 +128,14 @@
   }
   .padlink[hidden] { display: none; }
   /* the koi say what to do next: a small bubble that rides beside the leading koi's head and goes quiet as soon as you act */
-  #koisay { position: absolute; left: 0; top: 0; z-index: 3; margin: 0; pointer-events: none; white-space: nowrap;
-    font: 400 calc(19 / 1440 * var(--fw)) / 1.25 var(--font-ui); font-size: max(13px, calc(19 / 1440 * var(--fw))); letter-spacing: 0.02em; color: var(--ink);
-    background: rgb(4 60 72 / 0.78); border: 1px solid rgb(233 251 249 / 0.22); border-radius: 999px; padding: 0.5em 0.95em;
-    box-shadow: 0 2px 10px rgb(0 30 40 / 0.25); opacity: 0; translate: -50% -100%; transition: opacity .45s ease; }
-  #koisay::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; translate: -50% 0; rotate: 45deg;
-    background: rgb(4 60 72 / 0.78); border-right: 1px solid rgb(233 251 249 / 0.22); border-bottom: 1px solid rgb(233 251 249 / 0.22); }
+  /* the koi say what to do next: her script, loose white ink and a doodled loop with a tail toward the koi's mouth; quiet as soon as you act */
+  #koisay { position: absolute; left: 0; top: 0; z-index: 3; margin: 0; pointer-events: none; white-space: nowrap; color: var(--ink);
+    font: 400 calc(30 / 1440 * var(--fw)) / 1.1 "Astoria", cursive; font-size: max(19px, calc(30 / 1440 * var(--fw))); letter-spacing: 0;
+    text-shadow: 0 1px 3px rgb(0 30 40 / 0.45); padding: 0.45em 0.9em 0.5em; opacity: 0; translate: -50% -100%; transition: opacity .45s ease; }
+  #koisay svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgb(0 30 40 / 0.35)); }
+  #koisay svg path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
   #koisay.on { opacity: 1; }
   #koisay.below { translate: -50% 0; }
-  #koisay.below::after { bottom: auto; top: -6px; rotate: 225deg; }
   .padlink:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
 
   /* art detail slides: her "Art / ..." frames. The tile opens into a close-up of a lily pad, like diving into it */
@@ -202,7 +201,7 @@
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
     <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
     <a id="contactpad" class="padlink" href="card/" aria-label="contact" hidden></a>
-    <p id="koisay" role="status" aria-live="polite"></p>
+    <p id="koisay" role="status" aria-live="polite"><span></span><svg aria-hidden="true"></svg></p>
   </div>
   <div class="chrome">
     <div id="pull" aria-hidden="true"><i></i></div>
@@ -1106,7 +1105,22 @@
   // ---- the koi talk: if a visitor sits still for a moment, the koi nearest the middle tells them what to do here.
   // Any scroll, swipe, key or click hushes it; it only speaks again after another quiet spell.
   { const say = document.getElementById('koisay'), menuEl = document.getElementById('menulist');
-    let still = performance.now(), shown = '';
+    let still = performance.now(), shown = '', drawn = null;
+    // a hand-drawn loop around the words, like a pen doodle that doesn't quite close, with a little tail toward the koi's mouth
+    function inkLoop(el, below, side) {
+      const w = el.offsetWidth, h = el.offsetHeight, cx = w / 2, cy = h / 2, tx = w / 2 - side * w * 0.32, rx = w / 2 + 10, ry = h / 2 + 6, s1 = Math.random() * 6, s2 = Math.random() * 6;
+      const pts = [], a0 = -2.1, A = 2 * Math.PI + 0.55, n = 72, e = 2 / 2.8;
+      for (let i = 0; i <= n; i++) {
+        const a = a0 + A * i / n, j = 1 + 0.022 * Math.sin(3 * a + s1) + 0.014 * Math.sin(7 * a + s2) + 0.05 * i / n;
+        const c = Math.cos(a), sn = Math.sin(a);
+        pts.push([cx + rx * j * Math.sign(c) * Math.abs(c) ** e, cy + ry * j * Math.sign(sn) * Math.abs(sn) ** e]);
+      }
+      const f = v => v.toFixed(1), Y = y => below ? h - y : y;
+      const loop = 'M' + pts.map(p => f(p[0]) + ' ' + f(below ? h - p[1] : p[1])).join(' L');
+      const tail = `M${f(tx - 10)} ${f(Y(h + 4))} Q${f(tx - 3)} ${f(Y(h + 11))} ${f(tx + 1)} ${f(Y(h + 20))} Q${f(tx + 2)} ${f(Y(h + 11))} ${f(tx + 9)} ${f(Y(h + 5))}`;
+      el.querySelector('svg').innerHTML = `<path d="${loop}"/><path d="${tail}"/>`;
+    }
+
     const hush = () => { still = performance.now(); if (shown) { shown = ''; say.classList.remove('on'); } };
     for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown']) addEventListener(ev, hush, { passive: true });
     const line = () => {
@@ -1119,7 +1133,7 @@
     const tick = () => {
       requestAnimationFrame(tick);
       const now = performance.now(), want = now - still > (shown ? 0 : 2600) ? line() : '';
-      if (want !== shown) { shown = want; if (want) say.textContent = want; say.classList.toggle('on', !!want); }
+      if (want !== shown) { shown = want; if (want) { say.firstChild.textContent = want; drawn = null; } say.classList.toggle('on', !!want); }
       if (!shown) return;
       const r = frameRect(), sr = stageEl.getBoundingClientRect(), k = r.width / 1440 * camZ;
       const mid = [camX + 720 / camZ, cam + 512 / camZ];
@@ -1133,8 +1147,10 @@
       // the words come out just ahead of its mouth: above when it swims up, below when it swims down, so they never sit on the koi
       const bw = say.offsetWidth, bh = say.offsetHeight, pad = 12, below = best.t[1] > 0.2;
       const ahead = add(best.h, mul(best.t, 60));
-      let x = (ahead[0] - camX) * k, y = (ahead[1] - cam) * k + (below ? 14 : -14);
-      say.classList.toggle('below', below);
+      let x = (ahead[0] - camX) * k, y = (ahead[1] - cam) * k + (below ? 20 : -20);
+      say.classList.toggle('below', below); const side = Math.abs(best.t[0]) > 0.35 ? Math.sign(best.t[0]) : 0, key = below + ':' + side;   // the words lean out ahead of the koi, away from its body
+      if (drawn !== key) { drawn = key; inkLoop(say, below, side); }
+      x += side * bw * 0.32;
       x = Math.max(sr.left - r.left + pad + bw / 2, Math.min(sr.right - r.left - pad - bw / 2, x));
       y = below ? Math.max(sr.top - r.top + 70, Math.min(sr.bottom - r.top - pad - bh - 50, y)) : Math.max(sr.top - r.top + pad + bh + 60, Math.min(sr.bottom - r.top - pad - 50, y));
       say.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
