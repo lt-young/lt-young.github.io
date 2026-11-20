@@ -21,7 +21,7 @@
   --veil: oklch(0.38 0.11 150);
   --label: "Melodrame", Georgia, serif;
 }
-html,body{background:var(--pond-deep);margin:0;color:var(--chip-ink)}
+html,body{background:var(--veil);margin:0;color:var(--chip-ink)}
 .spacer{height:700vh}
 .stage{position:fixed;inset:0;overflow:hidden;height:100dvh}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -31,7 +31,7 @@ html,body{background:var(--pond-deep);margin:0;color:var(--chip-ink)}
 .hit.pad{cursor:pointer;border-radius:50%}
 .hit:focus-visible{outline:3px solid var(--koi);outline-offset:4px}
 .zoomed .hit{cursor:zoom-out}
-.veil{position:absolute;inset:0;background:var(--veil);opacity:0;pointer-events:none}
+.veil{position:absolute;inset:0;background:var(--veil);opacity:1;pointer-events:none}
 .chip{font:15px/1.2 var(--label);color:var(--chip-ink);background:var(--chip-bg);border:1px solid var(--chip-line);border-radius:999px;padding:8px 14px}
 button.chip{cursor:pointer}
 button.chip:hover{background:var(--chip-bg-hover)}
@@ -536,7 +536,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       bctx.drawImage(im, -im.naturalWidth / 2, -im.naturalHeight / 2);
     }
   }
-  function openScene(next, fromSlug) {
+  function openScene(next, fromSlug, flow) {
     id = next; S = SCENES[next]; WW = S.W; WH = S.H; OBS = S.obs;
     S.bow = S.bow || OBS.filter((o, i) => i < S.obs.length && (next === 'works' || (S.hits[i] && S.hits[i][0] === 'p')));
     zoomR = null; stage.classList.remove('zoomed');
@@ -554,8 +554,8 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     Object.assign(cam, startCam);
     KOI.forEach(k => { k.hurry = 1; if (k.ready) startLane(k, c[0] + (k.lane ? -200 : 500)); });
     respawnAll(); layLeaves();
-    anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 1.0 };
-    veil.style.transition = reduce ? 'none' : 'opacity .7s'; veil.style.opacity = 0;
+    anim = { kind: 'open', t: 0, from: startCam, dur: reduce ? 0.01 : 1.0, flow };
+    veil.style.transition = reduce ? 'none' : flow ? 'opacity .45s ease-out' : 'opacity .7s'; veil.style.opacity = 0;
   }
   // between pages without a dive (back, browser history): the pond dims to the pad green, the next page loads, and it opens out of its pad
   function crossTo(next, from) {
@@ -569,30 +569,25 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     const tg = baseTarget();
     hint.style.opacity = tg.p > 0.02 || zoomR ? 0 : 1;
     if (anim && anim.kind === 'cross') return;
-    if (anim && anim.kind === 'open') {
-      anim.t += dt; const u = easeIO(Math.min(1, anim.t / anim.dur));
+    if (anim && anim.kind === 'open') {             // after a dive it keeps moving (eases out only), otherwise it eases in and out
+      anim.t += dt; const x = Math.min(1, anim.t / anim.dur), u = anim.flow ? Math.sin(x * Math.PI / 2) : easeIO(x);
+      if (anim.flow) koiK = smooth(Math.min(1, anim.t / 0.6));   // the koi fade back in rather than popping up
       Object.assign(cam, lerpCam(anim.from, tg, u));
-      if (anim.t >= anim.dur) anim = null;
+      if (anim.t >= anim.dur) { anim = null; koiK = 1; }
       return;
     }
     if (anim && anim.kind === 'guide') {
-      // the koi swim to the pad and the view drifts after them; once they're circling it, the view dives into the pad
+      // one continuous dive into the pad you picked: the view centres on it as it starts to sink in, keeps sinking at an even pace,
+      // and the pad green rises over the last stretch; the next page then carries on the same motion out of its own pad
       anim.t += dt;
-      const heads = KOI.filter(k => k.ready).map(k => k.head || anim.c);
-      const near = heads.every(h => len(sub(h, anim.c)) < anim.r * 1.05 + 500);
-      if (!anim.dive && (near || anim.t > 0.8 || reduce)) { anim.dive = anim.t; anim.at = { ...cam }; }
-      if (!anim.dive) {
-        const mid = heads.reduce((a, h) => add(a, mul(h, 1 / heads.length)), [0, 0]);
-        const goal = { x: anim.c[0], y: anim.c[1], s: anim.from.s * 1.1 };   // settle on the pad, no chasing the koi around
-        const e = 1 - Math.exp(-dt * 2.2);
-        Object.assign(cam, lerpCam(cam, goal, e));
-      } else {
-        const v = Math.min(1, (anim.t - anim.dive) / (reduce ? 0.01 : 0.75)), e = v * v * (3 - 2 * v);   // a short, even dive
-        Object.assign(cam, lerpCam(anim.at, { s: Math.max(VW, VH) / (anim.r * 2 * 0.9), x: anim.c[0], y: anim.c[1] }, e));
-        veil.style.transition = 'none'; veil.style.opacity = String(smooth(clamp((v - 0.55) / 0.45, 0, 1)));
-        koiK = 1 - smooth(clamp((v - 0.4) / 0.6, 0, 1));
-        if (v >= 1 && !anim.wait) { const slug = anim.slug; anim.wait = true; loadImg(SCENES[slug].img).then(() => { anim = null; koiK = 1; openScene(slug, null); }); }
-      }
+      const v = Math.min(1, anim.t / (reduce ? 0.01 : 0.85));
+      const ez = 1 - Math.cos(v * Math.PI / 2), ep = smooth(Math.min(1, v / 0.7));
+      const to = { s: Math.max(VW, VH) / (anim.r * 2 * 0.9), x: anim.c[0], y: anim.c[1] };
+      const z = lerpCam(anim.from, to, ez);
+      Object.assign(cam, { s: z.s, x: anim.from.x + (to.x - anim.from.x) * ep, y: anim.from.y + (to.y - anim.from.y) * ep });
+      veil.style.transition = 'none'; veil.style.opacity = String(smooth(clamp((v - 0.6) / 0.4, 0, 1)));
+      koiK = 1 - smooth(clamp((v - 0.45) / 0.55, 0, 1));
+      if (v >= 1 && !anim.wait) { const slug = anim.slug; anim.wait = true; loadImg(SCENES[slug].img).then(() => { anim = null; koiK = 0; openScene(slug, null, true); }); }
       return;
     }
     let goal = tg;
