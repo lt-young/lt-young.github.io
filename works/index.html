@@ -67,7 +67,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 
-<script src="scenes.js?v=6"></script>
+<script src="scenes.js?v=7"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
@@ -242,18 +242,28 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   function trackCut(k, D) { const q = trackAt(k, D).p; let n = k.tp.length; while (n > 2 && k.td[n - 1] >= D) { k.tp.pop(); k.td.pop(); n--; } trackPush(k, q); }
   // a lane is an open path through the open water, entering at the left edge and leaving at the right; the koi rides it,
   // and once it has slipped out past the right edge it comes round again from the left (out of sight, beyond the frame)
-  function laneOf(k) { return S.lanes[Math.min(k.lane, S.lanes.length - 1)]; }
-  function laneDense(L) {                         // Catmull-Rom through the lane points, 8 world px apart
-    const out = [];
-    for (let i = 0; i < L.length - 1; i++) {
-      const p0 = L[Math.max(0, i - 1)], p1 = L[i], p2 = L[i + 1], p3 = L[Math.min(L.length - 1, i + 2)];
+  // on a page with a loop (the Works landing) both koi circle the pads on one closed path, half a lap apart, and never leave the pond
+  function laneOf(k) { return S.loop || S.lanes[Math.min(k.lane, S.lanes.length - 1)]; }
+  function laneDense(L, closed) {                 // Catmull-Rom through the lane points, 8 world px apart
+    const out = [], n = L.length, at = i => closed ? L[(i + n) % n] : L[Math.max(0, Math.min(n - 1, i))];
+    for (let i = 0; i < (closed ? n : n - 1); i++) {
+      const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
       const n = Math.max(2, Math.round(len(sub(p2, p1)) / 8));
       for (let s = 0; s < n; s++) { const t = s / n, t2 = t * t, t3 = t2 * t;
         out.push([0, 1].map(j => 0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3))); }
     }
-    out.push(L[L.length - 1]); return out;
+    if (!closed) out.push(L[n - 1]);
+    return out;
   }
   function startLane(k, atX) {                     // lay the koi on its lane with its head near world x = atX
+    if (S.loop) {
+      const L = k.dense = laneDense(S.loop, true), n = L.length, y0 = S.title[1] + S.title[3] / 2;
+      let i = 0; L.forEach((q, j) => { if (Math.hypot(q[0] - atX, q[1] - y0) < Math.hypot(L[i][0] - atX, L[i][1] - y0)) i = j; });
+      if (k.lane) i += n >> 1;
+      k.tp = []; k.td = [];
+      for (let j = i - 300; j <= i; j++) trackPush(k, L[((j % n) + n) % n]);
+      k.dist = k.td[k.td.length - 1]; k.li = i + 1; k.mode = 'loop'; feed(k); return;
+    }
     const L = k.dense = laneDense(laneOf(k));
     let i = 0; while (i < L.length - 1 && L[i][0] < atX) i++;
     const back = norm(sub(L[0], L[1]));
@@ -272,6 +282,9 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       }
       const head = trackAt(k, k.dist).p;
       if (k.li >= L.length && (head[0] > WW + 1400 || head[0] < -1400 || head[1] < -1600 || head[1] > WH + 1600)) startLane(k, -1e9);
+    } else if (k.mode === 'loop') {               // round and round the closed path, never off the pond
+      const L = k.dense, n = L.length;
+      while (k.td[k.td.length - 1] - k.dist < 2400) trackPush(k, L[k.li++ % n]);
     } else if (k.mode === 'ring') {               // circling the pad you chose
       while (k.td[k.td.length - 1] - k.dist < 2400) {
         k.ra += 8 / k.rr * k.rdir; trackPush(k, [k.rc[0] + Math.cos(k.ra) * k.rr, k.rc[1] + Math.sin(k.ra) * k.rr]);
