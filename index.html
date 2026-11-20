@@ -761,7 +761,7 @@
     } else k.sc += (k.scT - k.sc) * Math.min(1, dt * 1.4);
     let off = false;                                    // fully off screen: hurry round to the next way in
     if (!k.trans && mode === 'about' && k.P) { const vw = view(); off = k.P.every((q, i) => i % 5 || q[0] < vw[0] - 60 || q[0] > vw[2] + 60 || q[1] < vw[1] - 60 || q[1] > vw[3] + 60); }
-    const boostT = k.trans ? 1 + 4.6 * Math.min(3, Math.max(1, k.trans.len / 1500)) * Math.max(0, Math.sin(Math.PI * Math.max(0, Math.min(1, tf * 1.15)))) ** 0.7 : off ? 3.2 : 1;   // speeds up smoothly, eases off as it arrives
+    const boostT = k.trans ? 1 + 3.2 * Math.min(3, Math.max(1, k.trans.len / 1500)) * Math.max(0, Math.sin(Math.PI * Math.max(0, Math.min(1, tf * 1.15)))) ** 0.7 : off ? 3.2 : 1;   // speeds up smoothly, eases off as it arrives
     k.boost = k.boost === undefined ? 1 : k.boost + (boostT - k.boost) * Math.min(1, dt * (k.trans ? 3 : 1.2));   // speed builds and fades gradually, a glide rather than a dart
     k.speed = k.speed === undefined ? 120 : k.speed + ((70 + 95 * env) - k.speed) * Math.min(1, dt * 1.2);  // thrust follows the beats, coasting slows down
     // keep the pair half a loop apart: whichever koi is too close behind the other eases off, the one ahead picks up
@@ -855,7 +855,7 @@
   function camTarget() {
     const b = page === 'works' ? [WX, AY, Z] : page === 'art' ? [GX + EXT[0] / ZA + artX, AY, ZA] : home;   // art: the window's left edge starts at the art pond's own edge
     if (!pullV) return b;
-    const m = pullV * 90 / b[2];                  // the view gives a little toward the next page before it lets go
+    const m = pullV * 30 / b[2];                  // the view gives a little toward the next page before it lets go
     return [b[0] + pullDir[0] * m, b[1] + pullDir[1] * m, b[2]];
   }
   function stepCam(dt) {
@@ -864,11 +864,11 @@
       const A0 = camAnim; A0.t += dt;
       if (A0.wait) {                                  // the koi swim over to the pad first; the dive starts once they're circling it
         const near = KOI.every(k => !k.tp || len(sub(trackAt(k, k.dist).p, A0.p0)) < 1000);
-        if (near || A0.t > 2.6) { A0.wait = false; A0.t = 0; A0.c0 = [camX + 720 / camZ, cam + 512 / camZ]; }
+        if (near || A0.t > 0.9) { A0.wait = false; A0.t = 0; A0.c0 = [camX + 720 / camZ, cam + 512 / camZ]; }
         dirty = true; return;
       }
       if (A0.href) {                                  // dive into the Works pad, then open the Works pond out of its own Works pad
-        const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u) * 0.35 + u * u * u * 0.65;
+        const u = Math.min(1, A0.t / A0.dur), e = u * u * (3 - 2 * u);
         const z = Z * Math.pow(A0.zoom, e), f = (1 / Z - 1 / z) / (1 / Z - 1 / (Z * A0.zoom));
         const c = [A0.c0[0] + (A0.p0[0] - A0.c0[0]) * f, A0.c0[1] + (A0.p0[1] - A0.c0[1]) * f];
         camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
@@ -891,25 +891,22 @@
       }
       dirty = true;
     } else if (camAnim) {
-      // the koi lead: the view travels only as far as the koi have swum toward the next page, leaning in on them mid-way
+      // going to another page: the view glides straight there
       const A0 = camAnim, f = A0.from, ctr = (x, y, z) => [x + 720 / z, y + 512 / z];
       const c0 = ctr(...f), c1 = ctr(...tg), dir = sub(c1, c0), L2 = Math.max(1, dir[0] * dir[0] + dir[1] * dir[1]);
       A0.t += dt;
       const heads = KOI.map(k => k.tp ? trackAt(k, k.dist).p : c0);
       const lead = Math.max(...heads.map(h => ((h[0] - c0[0]) * dir[0] + (h[1] - c0[1]) * dir[1]) / L2));
-      const tt = Math.min(1, A0.t / (A0.dur || 1.9)), floor = tt * tt * tt * (tt * (6 * tt - 15) + 10);   // never slower than this, even if the koi dawdle
-      const goal = Math.min(1, Math.max(floor, lead - 0.05));
-      A0.p = Math.min(1, Math.max((A0.p || 0) + dt * 0.12, (A0.p || 0) + (goal - (A0.p || 0)) * (1 - Math.exp(-dt * 4))));   // always drifting forward, never a stall
-      const p = A0.p, w = Math.sin(Math.PI * Math.min(1, p));
-      const mid = mul(add(heads[0], heads[1]), 0.5), base = add(c0, mul(dir, p));
-      const c = add(base, mul(sub(mid, base), 0.45 * w));
-      const z = Math.exp(Math.log(f[2]) + (Math.log(tg[2]) - Math.log(f[2])) * p) * (1 + 0.4 * w);   // zoom in on the koi as they travel
+      // calm and quick (a friend felt carsick): a straight glide with a gentle start and finish, no zoom swell, no swaying after the koi
+      const tt = Math.min(1, A0.t / (A0.dur || 1)), p = A0.p = tt * tt * (3 - 2 * tt);
+      const c = add(c0, mul(dir, p));
+      const z = Math.exp(Math.log(f[2]) + (Math.log(tg[2]) - Math.log(f[2])) * p);
       camX = c[0] - 720 / z; cam = c[1] - 512 / z; camZ = z;
       if (p > 0.995) camAnim = null;
       dirty = true;
     } else {                                         // glide after the scroll instead of jumping with each wheel step
       const swimming = page === 'home' && KOI.some(k => k.trans && !k.trans.guide);   // landing <-> About: the view eases along with the koi instead of racing ahead and leaving the page empty
-      const k = 1 - Math.exp(-dt * (swimming ? 3 : 9)), cur = [camX, cam, camZ];
+      const k = 1 - Math.exp(-dt * (swimming ? 6 : 9)), cur = [camX, cam, camZ];
       const nx = cur.map((v, i) => v + (tg[i] - v) * (dt ? k : 1));
       if (Math.abs(nx[1] - tg[1]) < 0.3 && Math.abs(nx[2] - tg[2]) < 1e-4) nx.splice(0, 3, ...tg); else dirty = true;
       [camX, cam, camZ] = nx;
@@ -929,7 +926,7 @@
     if (pg === 'home') { home = top ? [0, 0, 1] : [AX, AY, Z]; scrollTo(0, top ? 0 : innerHeight); lastY = scrollY; } else scrollTo(0, 0);
     retarget(pg === 'home' ? (top ? 'landing' : 'about') : pg, running);
     const lead = Math.min(...KOI.map(k => k.trans ? k.trans.len : 0));      // a longer swim gets a little longer, so the koi stay ahead of the view
-    camAnim = { from, t: 0, p: 0, dur: Math.max(1.9, Math.min(3.2, lead / 1300)) };
+    camAnim = { from, t: 0, p: 0, dur: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.01 : 1.0 };
     syncUI(); dirty = true;
   }
   followBtn.addEventListener('click', () => go('works', true));
@@ -949,12 +946,12 @@
   }
   // the old words lift up and away while the new ones rise in beneath them, both moving at once
   function stepAbout(dt) {
-    stepT += dt; const IN = 1.3, OUT = 1.0;
+    stepT += dt; const IN = 0.7, OUT = 0.55;
     const ki = easeIO(Math.min(1, stepT / IN)), ko = easeIO(Math.min(1, stepT / OUT));
     for (let i = 0; i < 4; i++) {
       const r = STEP_R[i]; let k = 0, off = 0;
-      if (i === aboutStep) { k = Math.min(1, ki * 1.15); off = (1 - ki) * 220 * AS * stepDir; }     // new words rise in from below (from above going back)
-      else if (i === stepPrev && ko < 1) { k = 1 - ko; off = -ko * 240 * AS * stepDir; }            // the old ones lift up and away at the same time
+      if (i === aboutStep) { k = Math.min(1, ki * 1.15); off = (1 - ki) * 80 * AS * stepDir; }     // new words rise in from below (from above going back)
+      else if (i === stepPrev && ko < 1) { k = 1 - ko; off = -ko * 90 * AS * stepDir; }            // the old ones lift up and away at the same time
       stepK[i] = k; RECT['aboutStep' + i] = off ? [r[0], r[1] + off, r[2], r[3]] : r;
     }
     if (stepT < IN) dirty = true;
@@ -968,7 +965,7 @@
     if (camAnim || page !== 'works') return;
     retarget('worksPad', running);
     const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    camAnim = { zoom: 6, dur: quick ? 0.05 : 1.25, t: 0, p0: WORKS_PAD, wait: running && !quick, href: 'works/', c0: [camX + 720 / camZ, cam + 512 / camZ] };
+    camAnim = { zoom: 4, dur: quick ? 0.05 : 0.8, t: 0, p0: WORKS_PAD, wait: running && !quick, href: 'works/', c0: [camX + 720 / camZ, cam + 512 / camZ] };
     dirty = true;
   });
   addEventListener('pageshow', e => { if (e.persisted && camAnim && camAnim.href) { camAnim = null; retarget('works', false); dirty = true; } });   // back from the Works pond: settle on currently again      // the koi swim off to the right and the view follows them downstream to the art pond
@@ -1059,14 +1056,14 @@
     else { dExtra.hidden = true; dExtra.pause(); dExtra.removeAttribute('src'); }
     detail.querySelector('.info').style.setProperty('--dy', (a.meta.length > 3 ? 372 : 388 - (a.desc.length > 620 ? 13 : 0)) / 10.24 + '%');
     zoomFrom = from.querySelector('img,video').getBoundingClientRect(); from.style.visibility = 'hidden';   // the piece lifts off the water
-    detail.hidden = false; setP(0); animR(0, 1, 560);
+    detail.hidden = false; setP(0); animR(0, 1, 420);
     if (kb) document.getElementById('dshut').focus({ preventScroll: true });
   }
   function closeArt() {
     if (openIdx < 0) return; const from = openFrom; openIdx = -1;
     const kb = detail.contains(document.activeElement);
     if (from) zoomFrom = from.querySelector('img,video').getBoundingClientRect();      // and settles back where it now floats
-    animR(1, 0, 440, () => { detail.hidden = true; if (from) from.style.visibility = ''; if (kb && from && !from.hidden) from.focus({ preventScroll: true }); });
+    animR(1, 0, 340, () => { detail.hidden = true; if (from) from.style.visibility = ''; if (kb && from && !from.hidden) from.focus({ preventScroll: true }); });
   }
   document.getElementById('dshut').addEventListener('click', closeArt);
   detail.addEventListener('click', e => { if (e.target === detail || e.target.classList.contains('dframe')) closeArt(); });
