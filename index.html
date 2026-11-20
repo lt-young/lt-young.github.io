@@ -127,6 +127,16 @@
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); cursor: pointer; transform-origin: 50% 50%;
   }
   .padlink[hidden] { display: none; }
+  /* the koi say what to do next: a small bubble that rides beside the leading koi's head and goes quiet as soon as you act */
+  #koisay { position: absolute; left: 0; top: 0; z-index: 3; margin: 0; pointer-events: none; white-space: nowrap;
+    font: 400 calc(19 / 1440 * var(--fw)) / 1.25 var(--font-ui); font-size: max(13px, calc(19 / 1440 * var(--fw))); letter-spacing: 0.02em; color: var(--ink);
+    background: rgb(4 60 72 / 0.78); border: 1px solid rgb(233 251 249 / 0.22); border-radius: 999px; padding: 0.5em 0.95em;
+    box-shadow: 0 2px 10px rgb(0 30 40 / 0.25); opacity: 0; translate: -50% -100%; transition: opacity .45s ease; }
+  #koisay::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; translate: -50% 0; rotate: 45deg;
+    background: rgb(4 60 72 / 0.78); border-right: 1px solid rgb(233 251 249 / 0.22); border-bottom: 1px solid rgb(233 251 249 / 0.22); }
+  #koisay.on { opacity: 1; }
+  #koisay.below { translate: -50% 0; }
+  #koisay.below::after { bottom: auto; top: -6px; rotate: 225deg; }
   .padlink:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
 
   /* art detail slides: her "Art / ..." frames. The tile opens into a close-up of a lily pad, like diving into it */
@@ -192,6 +202,7 @@
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
     <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
     <a id="contactpad" class="padlink" href="card/" aria-label="contact" hidden></a>
+    <p id="koisay" role="status" aria-live="polite"></p>
   </div>
   <div class="chrome">
     <div id="pull" aria-hidden="true"><i></i></div>
@@ -1092,6 +1103,43 @@
     place(contactPad, cq[0] - 120 * AS, cq[1] - 120 * AS, 240 * AS, 240 * AS, page === 'works' && !camAnim);
     floatPieces();
   }
+  // ---- the koi talk: if a visitor sits still for a moment, the koi nearest the middle tells them what to do here.
+  // Any scroll, swipe, key or click hushes it; it only speaks again after another quiet spell.
+  { const say = document.getElementById('koisay'), menuEl = document.getElementById('menulist');
+    let still = performance.now(), shown = '';
+    const hush = () => { still = performance.now(); if (shown) { shown = ''; say.classList.remove('on'); } };
+    for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown']) addEventListener(ev, hush, { passive: true });
+    const line = () => {
+      if (openIdx >= 0 || camAnim || (menuEl && !menuEl.hidden)) return '';
+      if (page === 'works') return 'click a lily pad to open it';
+      if (page === 'art') return 'scroll to drift along, click a piece to see it up close';
+      if (scrollY < innerHeight * 0.5) return 'scroll down to meet Lauren';
+      return aboutStep < 3 ? 'keep scrolling' : 'scroll on, we\u2019ll show you her work';
+    };
+    const tick = () => {
+      requestAnimationFrame(tick);
+      const now = performance.now(), want = now - still > (shown ? 0 : 2600) ? line() : '';
+      if (want !== shown) { shown = want; if (want) say.textContent = want; say.classList.toggle('on', !!want); }
+      if (!shown) return;
+      const r = frameRect(), sr = stageEl.getBoundingClientRect(), k = r.width / 1440 * camZ;
+      const mid = [camX + 720 / camZ, cam + 512 / camZ];
+      let best = null;
+      for (const kq of KOI) { if (!kq.tp || !kq.tp.length) continue;
+        const q = trackAt(kq, kq.dist), h = add(q.p, [koiDX, koiDY]);
+        const under = page === 'works' && [[WORKS_PAD, 240], [Wk(928, 494), 200], [Wk(1222, 740), 240]].some(([c, r]) => len(sub(h, c)) < r * AS);   // a koi slipping under a pad can't talk
+        const d = len(sub(h, mid)) + (under ? 1e5 : 0);
+        if (!best || d < best.d) best = { h, d, t: q.tan }; }
+      if (!best) return;
+      // the words come out just ahead of its mouth: above when it swims up, below when it swims down, so they never sit on the koi
+      const bw = say.offsetWidth, bh = say.offsetHeight, pad = 12, below = best.t[1] > 0.2;
+      const ahead = add(best.h, mul(best.t, 60));
+      let x = (ahead[0] - camX) * k, y = (ahead[1] - cam) * k + (below ? 14 : -14);
+      say.classList.toggle('below', below);
+      x = Math.max(sr.left - r.left + pad + bw / 2, Math.min(sr.right - r.left - pad - bw / 2, x));
+      y = below ? Math.max(sr.top - r.top + 70, Math.min(sr.bottom - r.top - pad - bh - 50, y)) : Math.max(sr.top - r.top + pad + bh + 60, Math.min(sr.bottom - r.top - pad - 50, y));
+      say.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    };
+    requestAnimationFrame(tick); }
   let floatT = null;
   function floatPieces() {
     const show = page === 'art' || camX + 1440 / camZ > GX;     // the pond is there whenever the view reaches the art page
