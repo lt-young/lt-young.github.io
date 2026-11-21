@@ -28,7 +28,7 @@
     font: 18px/1.45 "Crimson Text", Georgia, serif;
     min-height: 100dvh;
   }
-  main { max-width: 1440px; margin: 0 auto; padding: 28px 24px 40px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 28px 24px 72px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 22px; }
   header p { margin: 0; color: var(--ink); font-size: 22px; line-height: 1.4; max-width: 62ch; }
   a.home { font-family: "Astoria", "Crimson Text", serif; font-size: 30px; line-height: 1; color: var(--ink); text-decoration: none; white-space: nowrap; }
@@ -70,6 +70,8 @@
 
   .note { font-size: 15px; color: var(--ink-soft); margin: 0; }
   #saved { transition: opacity .3s; opacity: 0; }
+  a.contact { position: fixed; right: 24px; bottom: 18px; font-family: "Astoria", "Crimson Text", serif; font-size: 28px; line-height: 1; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px; }
+  a.contact:hover { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -101,6 +103,7 @@
     </section>
   </div>
 </main>
+<a class="contact" href="../card/">contact</a>
 
 <script>
 (() => {
