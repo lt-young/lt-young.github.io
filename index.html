@@ -205,7 +205,7 @@
     <button id="follow" class="padlink" type="button" aria-label="follow the current" hidden></button>
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
     <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
-    <a id="contactpad" class="padlink" href="card/" aria-label="contact" hidden></a>
+    <a id="contactpad" class="padlink" href="koi/" aria-label="paint a koi" hidden></a>
     <p id="koisay" role="status" aria-live="polite"><span></span><svg aria-hidden="true"></svg></p>
   </div>
   <div class="chrome">
@@ -984,7 +984,7 @@
   }
   window.__about = () => [aboutStep, stepK.map(v => +v.toFixed(2)), leafCarry.toFixed(2)];
   artPad.addEventListener('click', () => go('art', true));
-  const contactPad = document.getElementById('contactpad');   // her middle pad on currently (was tbd) opens the contact card
+  const contactPad = document.getElementById('contactpad');   // her middle pad on currently (was contact) now opens the koi painting page; contact lives bottom right
   // her Works pad: the koi swim over and circle it, then the view dives in and the Works pond opens
   const worksPad = document.getElementById('workspad'), padVeil = document.getElementById('padveil');
   worksPad.addEventListener('click', () => {
@@ -1314,7 +1314,7 @@
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
     aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=3',
-    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=5', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=3' };
+    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=6', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=3' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
   KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.custom || k.src.replace('.png', '-pad.png') + '?v=2'; });
