@@ -7,7 +7,7 @@
 <meta name="description" content="Lauren Young's case studies, laid out as lily pads in a koi pond.">
 <style>
 @font-face{font-family:"Melodrame";src:url(../fonts/melodrame.woff2) format("woff2");font-display:swap}
-@font-face{font-family:"Apple Garamond";src:url(../fonts/apple-garamond-italic.woff2?v=1) format("woff2");font-display:swap}
+@font-face{font-family:"Astoria";src:url(../fonts/astoria.woff2) format("woff2");font-display:swap}
 /* The Works landing and every case study are Lauren's Figma frames. A current flows left to right around each pad and card,
    and the two koi swim the open water between them. Click a project's pad and the koi lead you into its case study;
    in a case study, click any image or section to bring it up full screen. */
@@ -47,7 +47,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 .soon{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .4s;pointer-events:none}
 [hidden]{display:none !important}
 /* the koi say what to do next: a small bubble beside the koi nearest the middle, quiet as soon as you act */
-#koisay{position:fixed;left:0;top:0;z-index:4;margin:0;pointer-events:none;white-space:nowrap;color:var(--chip-ink);font:400 24px/1.1 "Apple Garamond",Georgia,serif;text-shadow:0 1px 3px rgb(0 30 40 / 0.45);padding:.45em .9em .5em;opacity:0;translate:-50% -100%;transition:opacity .45s ease}
+#koisay{position:fixed;left:0;top:0;z-index:4;margin:0;pointer-events:none;white-space:nowrap;color:var(--chip-ink);font:400 24px/1.1 "Astoria",cursive;text-shadow:0 1px 3px rgb(0 30 40 / 0.45);padding:.45em .9em .5em;opacity:0;translate:-50% -100%;transition:opacity .45s ease}
 #koisay svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 2px rgb(0 30 40 / 0.35))}
 #koisay svg path{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
 #koisay.on{opacity:1}
@@ -75,7 +75,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 <p id="koisay" role="status" aria-live="polite"><span></span><svg aria-hidden="true"></svg></p>
 
-<script src="scenes.js?v=9"></script>
+<script src="scenes.js?v=10"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
