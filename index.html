@@ -8,7 +8,7 @@
 <link rel="icon" href="nav-icon.png" type="image/png">
 <meta name="theme-color" content="#0a6f80">
 <style>
-  @font-face { font-family: "Astoria"; src: url(fonts/astoria.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Apple Garamond"; src: url(fonts/apple-garamond-italic.woff2?v=1) format("woff2"); font-display: swap; }   /* Apple Garamond Italic: her script face everywhere (hero lettering stays an image) */
   @font-face { font-family: "Melodrame"; src: url(fonts/melodrame.woff2) format("woff2"); font-display: swap; }
   /* Full-bleed pond: the painted water fills the screen, the two koi circle each other. */
   :root {
@@ -35,11 +35,11 @@
   .lettering { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; pointer-events: none; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #c, #snap { inset: auto; }   /* placed by the script so they cover the whole window */
-  /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Astoria, top left; it takes you home */
+  /* her nav lockup from Figma: the lotus and "Lauren Young ~ always swimming forward" in Apple Garamond Italic, top left; it takes you home */
   #brand {
     position: absolute; top: 1%; left: 1.2%; z-index: 2; display: flex; align-items: flex-start; gap: calc(5 / 1440 * var(--fw));
     border: 0; background: none; padding: 4px 6px; border-radius: 8px; color: var(--ink);
-    font: 400 calc(54 / 1440 * var(--fw)) / 1 "Astoria", cursive; letter-spacing: 0; white-space: nowrap;
+    font: 400 calc(54 / 1440 * var(--fw)) / 1 "Apple Garamond", Georgia, serif; letter-spacing: 0; white-space: nowrap;
     text-shadow: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 8px rgb(0 40 50 / 0.35);
   }
   #brand span { padding-top: calc(3 / 1440 * var(--fw)); }
@@ -77,7 +77,7 @@
   /* "move upstream" is written on the water like her page titles, with a little ripple under it */
   #back {
     border: 0; background: none; padding: 4px 6px 12px; border-radius: 6px; position: relative;
-    font: 400 calc(30 / 1440 * var(--fw)) / 1 "Astoria", cursive; letter-spacing: 0; color: var(--ink);
+    font: 400 calc(30 / 1440 * var(--fw)) / 1 "Apple Garamond", Georgia, serif; letter-spacing: 0; color: var(--ink);
     text-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
   }
   #back[hidden] { display: none; }
@@ -103,7 +103,7 @@
   #menulist button {
     border: 0; background: none; padding: 0.2cqw 0.3cqw; border-radius: 6px; color: var(--ink); white-space: nowrap;
     display: flex; align-items: center; gap: 0.7cqw;
-    font: 400 calc(42 / 1440 * var(--fw)) / 1.2 "Astoria", cursive; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+    font: 400 calc(42 / 1440 * var(--fw)) / 1.2 "Apple Garamond", Georgia, serif; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
     animation: drift-in 0.5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms);
   }
   #menulist button::before {
@@ -123,14 +123,14 @@
   /* words written on a lily pad, like her pad labels; the pad itself turns a little on hover */
   .padlink {
     position: absolute; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink);
-    font-family: "Astoria", cursive; font-weight: 400; letter-spacing: 0; line-height: 1.05; text-align: center;
+    font-family: "Apple Garamond", Georgia, serif; font-weight: 400; letter-spacing: 0; line-height: 1.05; text-align: center;
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); cursor: pointer; transform-origin: 50% 50%;
   }
   .padlink[hidden] { display: none; }
   /* the koi say what to do next: a small bubble that rides beside the leading koi's head and goes quiet as soon as you act */
   /* the koi say what to do next: her script, loose white ink and a doodled loop with a tail toward the koi's mouth; quiet as soon as you act */
   #koisay { position: absolute; left: 0; top: 0; z-index: 3; margin: 0; pointer-events: none; white-space: nowrap; color: var(--ink);
-    font: 400 calc(30 / 1440 * var(--fw)) / 1.1 "Astoria", cursive; font-size: max(19px, calc(30 / 1440 * var(--fw))); letter-spacing: 0;
+    font: 400 calc(30 / 1440 * var(--fw)) / 1.1 "Apple Garamond", Georgia, serif; font-size: max(19px, calc(30 / 1440 * var(--fw))); letter-spacing: 0;
     text-shadow: 0 1px 3px rgb(0 30 40 / 0.45); padding: 0.45em 0.9em 0.5em; opacity: 0; translate: -50% -100%; transition: opacity .45s ease; }
   #koisay svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgb(0 30 40 / 0.35)); }
   #koisay svg path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
@@ -163,8 +163,8 @@
     font-family: "Crimson Text", Georgia, serif;   /* the reading text stays a calm upright serif */
   }
   .detail[hidden] { display: none; }
-  .detail h2 { position: absolute; left: calc(120 / 1440 * 100%); top: calc(70 / 1024 * 100%); margin: 0; width: 80%;   /* the piece's name, written in Astoria */
-    font: 400 calc(92 / 1440 * 100cqw) / 1.15 "Astoria", cursive; letter-spacing: 0; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
+  .detail h2 { position: absolute; left: calc(120 / 1440 * 100%); top: calc(70 / 1024 * 100%); margin: 0; width: 80%;   /* the piece's name, written in Apple Garamond Italic */
+    font: 400 calc(92 / 1440 * 100cqw) / 1.15 "Apple Garamond", Georgia, serif; letter-spacing: 0; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .detail h2, .detail .info, .detail .shut { opacity: var(--p, 0); translate: 0 calc((1 - var(--p, 0)) * 1.2cqw); }
   .detail img#dimg, .detail #dvid { transform-origin: 0 0; }
@@ -183,7 +183,7 @@
   .detail img { position: absolute; display: block; object-fit: cover; box-shadow: 0 calc(10 / 1440 * 100cqw) calc(30 / 1440 * 100cqw) rgb(0 20 10 / 0.35); }
   .detail .shut {
     position: absolute; left: calc(120 / 1440 * 100%); bottom: 2.4%; border: 0; background: none; padding: 8px 4px; border-radius: 6px;
-    font: 400 calc(44 / 1440 * 100cqw) / 1 "Astoria", cursive; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+    font: 400 calc(44 / 1440 * 100cqw) / 1 "Apple Garamond", Georgia, serif; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
   }
   .detail .shut::before { content: "\2190"; margin-right: 8px; font: 400 0.7em/1 var(--font-ui); vertical-align: 0.15em; }
 </style>
@@ -1299,8 +1299,8 @@
     requestAnimationFrame(frame);
   }
   const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
-    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=1',
-    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=3', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=1' };
+    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=2',
+    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=4', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=2' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
   KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });

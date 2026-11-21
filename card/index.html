@@ -13,7 +13,7 @@
 <meta name="theme-color" content="#0a6f80">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap">
 <style>
-  @font-face { font-family: "Astoria"; src: url(../fonts/astoria.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Apple Garamond"; src: url(../fonts/apple-garamond-italic.woff2?v=1) format("woff2"); font-display: swap; }
   @font-face { font-family: "Melodrame"; src: url(../fonts/melodrame.woff2) format("woff2"); font-display: swap; }
   :root {
     --pond: oklch(0.47 0.08 210);
@@ -42,7 +42,7 @@
 
   .brand {
     position: absolute; top: 12px; left: 14px; z-index: 3; display: flex; align-items: flex-start; gap: 4px;
-    text-decoration: none; font: 400 30px/1 "Astoria", cursive; text-shadow: var(--shade);
+    text-decoration: none; font: 400 30px/1 "Apple Garamond", Georgia, serif; text-shadow: var(--shade);
   }
   .brand img { width: 36px; height: auto; filter: drop-shadow(0 2px 4px rgb(0 30 40 / 0.4)); transition: rotate .6s cubic-bezier(.2,.7,.2,1); }
   .brand:hover img { rotate: -8deg; }
@@ -51,7 +51,7 @@
   main { position: relative; z-index: 1; width: min(440px, 100% - 32px); margin: 0 auto; padding: 22vh 0 56px; }
 
   .hero { display: grid; justify-items: center; text-align: center; }
-  h1 { margin: 10px 0 0; font: 400 62px/1 "Astoria", cursive; text-shadow: var(--shade); letter-spacing: 0; }
+  h1 { margin: 10px 0 0; font: 400 62px/1 "Apple Garamond", Georgia, serif; text-shadow: var(--shade); letter-spacing: 0; }
   .role { margin: 8px 0 0; font-size: 18px; color: var(--ink-soft); text-shadow: var(--shade); }
   .role b { display: block; font-weight: 400; color: var(--ink); }
 
@@ -76,7 +76,7 @@
     margin-top: 28px; background: var(--paper); color: var(--paper-ink); border-radius: var(--r); padding: var(--pad);
     box-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 12px 28px rgb(0 40 50 / 0.28);
   }
-  .note h2 { margin: 0; font: 400 38px/1 "Astoria", cursive; color: var(--paper-ink); }
+  .note h2 { margin: 0; font: 400 38px/1 "Apple Garamond", Georgia, serif; color: var(--paper-ink); }
   .note p.sub { margin: 6px 0 14px; color: var(--paper-soft); font-size: 16px; }
   label { display: block; font-size: 14px; letter-spacing: 0.03em; color: var(--paper-soft); margin: 10px 0 4px; }
   label i { font-style: normal; opacity: .75; }
@@ -92,7 +92,7 @@
   .err { color: oklch(0.52 0.16 35); font-size: 15px; margin: 8px 0 0; min-height: 1.3em; }
 
   .next { margin-top: 28px; }
-  .next h2 { margin: 0 0 10px; font: 400 38px/1 "Astoria", cursive; text-shadow: var(--shade); }
+  .next h2 { margin: 0 0 10px; font: 400 38px/1 "Apple Garamond", Georgia, serif; text-shadow: var(--shade); }
   .next ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .next a {
     display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 12px; padding: 10px 16px 10px 10px;
@@ -106,7 +106,7 @@
   .next a svg { width: 16px; height: 16px; stroke: var(--paper-soft); stroke-width: 1.4; fill: none; stroke-linecap: round; }
 
   .qrbtn { margin: 26px auto 0; display: flex; }
-  footer { position: relative; z-index: 1; text-align: center; padding: 0 16px 28px; font: 400 26px/1 "Astoria", cursive; color: var(--ink-soft); text-shadow: var(--shade); }
+  footer { position: relative; z-index: 1; text-align: center; padding: 0 16px 28px; font: 400 26px/1 "Apple Garamond", Georgia, serif; color: var(--ink-soft); text-shadow: var(--shade); }
 
   /* QR: a paper square that surfaces from the water */
   dialog { border: 0; padding: 0; background: transparent; max-width: none; }
@@ -115,7 +115,7 @@
   dialog[open] .qr { animation: surface .45s cubic-bezier(.2,.8,.2,1); }
   @keyframes surface { from { translate: 0 18px; scale: .96; opacity: 0; } }
   .qr img { width: 100%; aspect-ratio: 1; display: block; border-radius: 6px; }
-  .qr p { margin: 12px 0 14px; font: 400 32px/1 "Astoria", cursive; }
+  .qr p { margin: 12px 0 14px; font: 400 32px/1 "Apple Garamond", Georgia, serif; }
   .qr .btn { background: var(--paper-ink); color: var(--paper); border-color: transparent; width: 100%; }
 
   @media (prefers-reduced-motion: reduce) { body { animation: none; } dialog[open] .qr { animation: none; } }
