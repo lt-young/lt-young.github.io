@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint Your Koi</title>
+<meta name="description" content="Paint your own koi for Lauren Young's pond.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap">
+<style>
+  @font-face { font-family: "Astoria"; src: url(../fonts/astoria.woff2) format("woff2"); font-display: swap; }
+  :root {
+    --ink: oklch(0.97 0.01 190);
+    --ink-soft: oklch(0.86 0.03 195);
+    --deep: oklch(0.27 0.045 215);
+    --surface: oklch(0.32 0.05 212);
+    --surface-2: oklch(0.38 0.05 210);
+    --line: rgb(255 255 255 / 0.14);
+    --accent: oklch(0.72 0.17 45);
+    --r: 22px;
+    --pad: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--deep);
+    color: var(--ink);
+    font: 18px/1.45 "Crimson Text", Georgia, serif;
+    min-height: 100dvh;
+  }
+  main { max-width: 1440px; margin: 0 auto; padding: 28px 24px 40px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 22px; }
+  header p { margin: 0; color: var(--ink); font-size: 22px; line-height: 1.4; max-width: 62ch; }
+  a.home { font-family: "Astoria", "Crimson Text", serif; font-size: 30px; line-height: 1; color: var(--ink); text-decoration: none; white-space: nowrap; }
+  a.home:hover { color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: var(--pad); display: flex; flex-direction: column; gap: 12px; }
+  .label { font-size: 15px; color: var(--ink-soft); letter-spacing: 0.04em; text-transform: lowercase; display: flex; justify-content: space-between; align-items: center; }
+
+  .water { background: #2b6a73 url(../works-water.png?v=2) repeat; background-size: 540px auto; border-radius: calc(var(--r) - var(--pad)); position: relative; overflow: hidden; }
+  #dish { aspect-ratio: 2732 / 1840; touch-action: none; cursor: none; }
+  #dish canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #cursor { position: absolute; left: 0; top: 0; pointer-events: none; border: 1.5px solid rgb(255 255 255 / 0.85); outline: 1px solid rgb(0 0 0 / 0.35); border-radius: 2px; opacity: 0; transition: opacity .15s; }
+  #dish:hover #cursor { opacity: 1; }
+
+  #pond { flex: 1; min-height: 420px; }
+  #pond canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .swatches { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgb(0 0 0 / 0.25); padding: 0; cursor: pointer; position: relative; }
+  .sw[aria-pressed="true"]::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--ink); }
+  .picker { position: relative; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; border: 1px solid rgb(0 0 0 / 0.25);
+    background: conic-gradient(in oklch longer hue, oklch(0.7 0.18 0), oklch(0.7 0.18 360)); }
+  .picker input { position: absolute; inset: -8px; width: 46px; height: 46px; opacity: 0; cursor: pointer; }
+  .picker[aria-pressed="true"]::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 3px var(--ink); }
+
+  .size { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: 15px; }
+  input[type=range] { accent-color: var(--accent); width: 130px; }
+
+  .btns { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  button.b { font: 600 15px/1 "Crimson Text", Georgia, serif; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 9px 15px; cursor: pointer; transition: background .15s; }
+  button.b:hover { background: oklch(0.44 0.05 208); }
+  button.b[aria-pressed="true"] { background: var(--ink); color: var(--deep); }
+  button.primary { background: var(--accent); color: oklch(0.2 0.03 40); border-color: transparent; }
+  button.primary:hover { background: oklch(0.78 0.16 50); }
+
+  .note { font-size: 15px; color: var(--ink-soft); margin: 0; }
+  #saved { transition: opacity .3s; opacity: 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p>I’m so drawn to koi because I feel like they each have their own unique frame. Add your own koi to the pond. They will swim with you while you’re here.</p>
+    <a class="home" href="../">swim with me</a>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="label"><span>paint your koi</span><span id="saved">saved</span></div>
+      <div class="water" id="dish"><canvas id="paint"></canvas><div id="cursor"></div></div>
+      <div class="tools">
+        <div class="swatches" id="swatches"></div>
+        <label class="size">size <input id="size" type="range" min="30" max="420" value="150"></label>
+        <div class="btns">
+          <button class="b" id="eraser" aria-pressed="false">eraser</button>
+          <button class="b" id="undo">undo</button>
+          <button class="b" id="clear">start over</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="label"><span>your koi in the pond</span></div>
+      <div class="water" id="pond"><canvas id="gl"></canvas></div>
+      <p class="note">Your koi is saved in this browser, so it is still yours when you come back.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  // ---------- layers (Lauren's files, 2x, all on the same 2732 x 1840 canvas)
+  const W = 2732, H = 1840;
+  const SRC = { structure: 'layers/structure.png?v=1', mask: 'layers/mask.png?v=1', shading: 'layers/shading.png?v=1' };
+  const SWATCHES = ['#d8361f', '#ee7a22', '#f3c13a', '#1e1b1f', '#f4efe6', '#e8578f', '#3fae6a', '#2f8fd6'];
+  const KEY = 'koi-paint-v1', TEXKEY = 'koi-paint-tex-v1';
+
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const load = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+  const view = document.getElementById('paint'); view.width = W; view.height = H;
+  const vctx = view.getContext('2d');
+  const paint = mk(W, H), pctx = paint.getContext('2d');      // the empty layer the visitor paints on
+  const stroke = mk(W, H), sctx = stroke.getContext('2d');     // the stroke being drawn right now
+  const body = mk(W, H), bctx = body.getContext('2d');         // white mask with the paint merged onto it
+  const tmp = mk(W, H), tctx = tmp.getContext('2d');
+  let L = {}, ready = false, shadeBlend = 'multiply';
+
+  // ---------- seeded noise, so a saved stroke replays exactly the same
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function valueNoise(w, h, cell, r) {
+    const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2, g = new Float32Array(gw * gh).map(() => r());
+    const out = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const fx = x / cell, fy = y / cell, ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy;
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      const a = g[iy * gw + ix], b = g[iy * gw + ix + 1], c = g[(iy + 1) * gw + ix], d = g[(iy + 1) * gw + ix + 1];
+      out[y * w + x] = a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+    }
+    return out;
+  }
+
+  // ---------- the brush: a chunky, blocky flat stamp with ragged edges and dry streaks (in the spirit of Procreate's Nikko Rull)
+  const SW = 220, SH = 120, STAMPS = [];
+  for (let v = 0; v < 6; v++) {
+    const r = rng(101 + v * 17), c = mk(SW, SH), x = c.getContext('2d'), im = x.createImageData(SW, SH);
+    const edge = valueNoise(SW, SH, 9, r), fine = valueNoise(SW, SH, 3, r), streak = valueNoise(SW, SH, 1, r);
+    const sk = new Float32Array(SH).map(() => r());   // streaks run along the brush
+    for (let y = 0; y < SH; y++) for (let xx = 0; xx < SW; xx++) {
+      const i = y * SW + xx;
+      const dx = Math.min(xx, SW - 1 - xx) / (SW * 0.5), dy = Math.min(y, SH - 1 - y) / (SH * 0.5);
+      const rag = 0.08 + 0.42 * edge[i] + 0.12 * fine[i];
+      let a = Math.min(1, Math.min(dx, dy) / rag);           // ragged rectangle
+      a = a > 0.55 ? 1 : a / 0.55;
+      a = Math.max(0, a - (fine[i] > 0.85 ? 0.3 : 0));        // little dry holes
+      a *= 0.78 + 0.22 * sk[y] * (0.6 + 0.4 * streak[i]);    // bristle streaks
+      im.data[i * 4 + 3] = Math.max(0, Math.min(255, a * 255));
+    }
+    x.putImageData(im, 0, 0); STAMPS.push(c);
+  }
+  // paper grain fixed to the canvas, so the texture stays put the way a textured brush does in Procreate
+  const GR = 512, grain = mk(GR, GR);
+  { const r = rng(7), x = grain.getContext('2d'), im = x.createImageData(GR, GR), n1 = valueNoise(GR, GR, 4, r), n2 = valueNoise(GR, GR, 26, r), n3 = valueNoise(GR, GR, 1.5, r);
+    for (let i = 0; i < GR * GR; i++) { let a = 0.8 + 0.2 * Math.min(1, n2[i] * 1.3); if (n1[i] > 0.72) a *= 0.55; a *= 0.94 + 0.06 * n3[i]; im.data[i * 4 + 3] = a * 255; }
+    x.putImageData(im, 0, 0); }
+  const grainPat = tctx.createPattern(grain, 'repeat');
+
+  const tinted = {};
+  function stampsFor(color) {
+    if (tinted[color]) return tinted[color];
+    return tinted[color] = STAMPS.map(s => { const c = mk(SW, SH), x = c.getContext('2d'); x.drawImage(s, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = color; x.fillRect(0, 0, SW, SH); return c; });
+  }
+  function dab(ctx, st, x, y, size, ang, r) {
+    const s = st[(r() * st.length) | 0], w = size, h = size * SH / SW * (0.9 + 0.2 * r());
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang + (r() - 0.5) * 0.12); ctx.globalAlpha = 0.6 + 0.3 * r();
+    ctx.drawImage(s, -w / 2, -h / 2, w, h); ctx.restore();
+  }
+  const ANGLE = -0.6;    // the flat brush is held at a slant
+  function strokeSegment(ctx, S, a, b) {
+    const st = stampsFor(S.erase ? '#000' : S.color), step = Math.max(2, S.size * 0.1);
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]); let t = S._carry || 0;
+    while (t <= d) { const f = d ? t / d : 0, p = a[2] + (b[2] - a[2]) * f;
+      dab(ctx, st, a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, S.size * (0.55 + 0.45 * p), ANGLE, S._r); t += step; }
+    S._carry = t - d;
+  }
+  function renderStroke(S) { sctx.clearRect(0, 0, W, H); S._r = rng(S.seed); S._carry = 0;
+    const P = S.points; if (P.length === 1) strokeSegment(sctx, S, P[0], P[0]); for (let i = 1; i < P.length; i++) strokeSegment(sctx, S, P[i - 1], P[i]); }
+  function grained() {          // the stroke canvas, roughened by the fixed grain
+    tctx.globalCompositeOperation = 'copy'; tctx.drawImage(stroke, 0, 0);
+    tctx.globalCompositeOperation = 'destination-in'; tctx.fillStyle = grainPat; tctx.fillRect(0, 0, W, H);
+    tctx.globalCompositeOperation = 'source-over'; return tmp;
+  }
+  function commit(S) {
+    pctx.globalCompositeOperation = S.erase ? 'destination-out' : 'source-over';
+    pctx.globalAlpha = S.erase ? 1 : 0.94; pctx.drawImage(S.erase ? stroke : grained(), 0, 0);
+    pctx.globalAlpha = 1; pctx.globalCompositeOperation = 'source-over'; sctx.clearRect(0, 0, W, H);
+  }
+
+  // ---------- compositing: structure, white mask + paint + shading, all clipped to the mask
+  let live = null;
+  function compose(ctx, w, h) {
+    bctx.globalCompositeOperation = 'copy'; bctx.drawImage(L.mask, 0, 0, W, H);
+    bctx.globalCompositeOperation = 'source-atop'; bctx.drawImage(paint, 0, 0);
+    if (live) bctx.drawImage(live.erase ? eraseView() : grained(), 0, 0);
+    bctx.globalCompositeOperation = shadeBlend; bctx.drawImage(L.shading, 0, 0, W, H);   // shading, clipped to the white mask
+    bctx.globalCompositeOperation = 'destination-in'; bctx.drawImage(L.mask, 0, 0, W, H);
+    bctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(L.structure, 0, 0, w, h);
+    ctx.drawImage(body, 0, 0, w, h);
+  }
+  function eraseView() {        // preview erasing: show the mask through where the eraser has been
+    tctx.globalCompositeOperation = 'copy'; tctx.drawImage(L.mask, 0, 0, W, H);
+    tctx.globalCompositeOperation = 'destination-in'; tctx.drawImage(stroke, 0, 0);
+    tctx.globalCompositeOperation = 'source-over'; return tmp;
+  }
+
+  // ---------- painting
+  let strokes = [], color = SWATCHES[0], erase = false, dirty = true, texDirty = true, lastTex = 0;
+  const sizeEl = document.getElementById('size'), dish = document.getElementById('dish'), cur = document.getElementById('cursor');
+  const toCanvas = e => { const r = view.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * W), Math.round((e.clientY - r.top) / r.height * H)]; };
+  function showCursor(e) {
+    const r = dish.getBoundingClientRect(), k = r.width / W, s = +sizeEl.value * k, h = s * SH / SW;
+    cur.style.width = s + 'px'; cur.style.height = h + 'px';
+    cur.style.transform = `translate(${e.clientX - r.left - s / 2}px, ${e.clientY - r.top - h / 2}px) rotate(${ANGLE}rad)`;
+  }
+  dish.addEventListener('pointerdown', e => {
+    if (!ready) return; dish.setPointerCapture(e.pointerId);
+    const [x, y] = toCanvas(e), p = e.pointerType === 'pen' ? e.pressure : 1;
+    live = { color, erase, size: +sizeEl.value, seed: (Math.random() * 1e9) | 0, points: [[x, y, +p.toFixed(2)]] };
+    live._r = rng(live.seed); live._carry = 0; sctx.clearRect(0, 0, W, H); strokeSegment(sctx, live, live.points[0], live.points[0]); dirty = true;
+  });
+  dish.addEventListener('pointermove', e => {
+    showCursor(e); if (!live) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of evs) { const [x, y] = toCanvas(ev), p = ev.pointerType === 'pen' ? ev.pressure : 1, P = live.points, q = P[P.length - 1];
+      if (Math.hypot(x - q[0], y - q[1]) < 3) continue; const pt = [x, y, +p.toFixed(2)]; P.push(pt); strokeSegment(sctx, live, q, pt); }
+    dirty = true;
+  });
+  const end = () => { if (!live) return; const S = live; live = null; commit(S); delete S._r; delete S._carry; strokes.push(S); dirty = texDirty = true; save(); };
+  dish.addEventListener('pointerup', end); dish.addEventListener('pointercancel', end);
+
+  function replay() { pctx.clearRect(0, 0, W, H); for (const S of strokes) { renderStroke(S); commit(S); delete S._r; delete S._carry; } dirty = texDirty = true; }
+  document.getElementById('undo').onclick = () => { strokes.pop(); replay(); save(); };
+  document.getElementById('clear').onclick = () => { strokes = []; replay(); save(); };
+  const eraserBtn = document.getElementById('eraser');
+  eraserBtn.onclick = () => { erase = !erase; eraserBtn.setAttribute('aria-pressed', erase); };
+
+  // swatches + a full color picker (life is a rainbow)
+  const swEl = document.getElementById('swatches'), btns = [];
+  function pick(c, el) { color = c; erase = false; eraserBtn.setAttribute('aria-pressed', false); btns.forEach(b => b.setAttribute('aria-pressed', b === el)); }
+  SWATCHES.forEach((c, i) => { const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.setAttribute('aria-label', 'paint ' + c);
+    b.setAttribute('aria-pressed', i === 0); b.onclick = () => pick(c, b); swEl.appendChild(b); btns.push(b); });
+  const pk = document.createElement('label'); pk.className = 'picker'; pk.title = 'any color';
+  pk.innerHTML = '<input type="color" value="#7a3fd0" aria-label="any color">'; swEl.appendChild(pk); btns.push(pk);
+  pk.querySelector('input').addEventListener('input', e => pick(e.target.value, pk));
+
+  // saving: the strokes themselves, so the koi can be repainted at full size later
+  const savedEl = document.getElementById('saved'); let savedT;
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(strokes)); savedEl.style.opacity = 1; clearTimeout(savedT); savedT = setTimeout(() => savedEl.style.opacity = 0, 1200); } catch (e) {}
+    clearTimeout(save.t); save.t = setTimeout(saveSiteKoi, 400);
+  }
+  // the main site swaps its orange koi for this one: a small texture at the site's koi scale (0.3 of the layers),
+  // with a 100px margin and the same soft dark halo her other koi carry
+  const SITE = 0.3, PADPX = 100;
+  function saveSiteKoi() {
+    try {
+      if (!strokes.length) { localStorage.removeItem(TEXKEY); return; }
+      const w = Math.round(W * SITE), h = Math.round(H * SITE), c = mk(w + 2 * PADPX, h + 2 * PADPX), x = c.getContext('2d');
+      const k = mk(w, h), kx = k.getContext('2d'); compose(kx, w, h);
+      const sm = mk(Math.round(c.width / 10), Math.round(c.height / 10)), sx = sm.getContext('2d');   // blur by shrinking
+      sx.drawImage(k, PADPX / 10, PADPX / 10, w / 10, h / 10); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = 'rgb(12 71 82)'; sx.fillRect(0, 0, sm.width, sm.height);
+      x.globalAlpha = 0.55; x.imageSmoothingQuality = 'high'; x.drawImage(sm, 0, 0, c.width, c.height); x.globalAlpha = 1;
+      x.drawImage(k, PADPX, PADPX);
+      let url = c.toDataURL('image/webp', 0.92); if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+      localStorage.setItem(TEXKEY, url);
+    } catch (e) {}
+  }
+  function restore() { try { const s = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(s)) strokes = s; } catch (e) { strokes = []; } }
+
+  // ---------- the pond: the painted koi, bent along a traced spine, swimming a loop (WebGL)
+  const glc = document.getElementById('gl'), gl = glc.getContext('webgl', { premultipliedAlpha: true, alpha: true });
+  const TEX = 2048, texC = mk(TEX, TEX), texX = texC.getContext('2d');
+  // head-to-tail spine in layer px, traced on Lauren's koi
+  const SPINE = [[2350, 170], [2340, 300], [2330, 450], [2280, 650], [2160, 850], [2000, 1000], [1800, 1120], [1550, 1210], [1250, 1290], [950, 1340], [600, 1400], [250, 1460], [20, 1500]];
+  const N = 48, M = 15, HALF = 760;
+  function resample(pts, n) {
+    const d = [0]; for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const out = []; let j = 0;
+    for (let i = 0; i < n; i++) { const t = d[d.length - 1] * i / (n - 1); while (j < d.length - 2 && d[j + 1] < t) j++;
+      const f = (t - d[j]) / (d[j + 1] - d[j]); out.push([pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f]); }
+    return { pts: out, len: d[d.length - 1] };
+  }
+  const RS = resample(SPINE, N), REST = RS.pts, BL = RS.len;
+  function normalsOf(P) { return P.map((p, i) => { const a = P[Math.max(0, i - 2)], b = P[Math.min(P.length - 1, i + 2)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [-dy / l, dx / l]; }); }
+  const RN = normalsOf(REST);
+  const UV = new Float32Array(N * M * 2);
+  for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const o = (j / (M - 1) * 2 - 1) * HALF, k = (i * M + j) * 2;
+    UV[k] = (REST[i][0] + RN[i][0] * o) / W; UV[k + 1] = (REST[i][1] + RN[i][1] * o) / H; }
+  const IDX = []; for (let i = 0; i < N - 1; i++) for (let j = 0; j < M - 1; j++) { const a = i * M + j, b = a + 1, c = a + M, d = c + 1; IDX.push(a, c, b, b, c, d); }
+
+  const vs = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; uniform vec2 off; varying vec2 v;
+    void main(){ v = uv; vec2 q = (p + off) / res * 2.0 - 1.0; gl_Position = vec4(q.x, -q.y, 0, 1); }`;
+  const fs = `precision mediump float; uniform sampler2D t; uniform float shadow; varying vec2 v;
+    void main(){ vec4 c = texture2D(t, v); gl_FragColor = shadow > 0.0 ? vec4(0.0, 0.05, 0.08, 1.0) * c.a * shadow : c; }`;
+  const sh = (ty, s) => { const o = gl.createShader(ty); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  const U = n => gl.getUniformLocation(prog, n);
+  const pBuf = gl.createBuffer(), uvBuf = gl.createBuffer(), iBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, UV, gl.STATIC_DRAW);
+  const aUV = gl.getAttribLocation(prog, 'uv'), aP = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(IDX), gl.STATIC_DRAW);
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  function upload() { compose(texX, TEX, TEX); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texC); gl.generateMipmap(gl.TEXTURE_2D); }
+
+  let pw = 0, ph = 0, dpr = 1;
+  function fit() { const r = glc.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1); pw = r.width; ph = r.height;
+    glc.width = Math.round(pw * dpr); glc.height = Math.round(ph * dpr); gl.viewport(0, 0, glc.width, glc.height); }
+  addEventListener('resize', fit);
+
+  // a gentle counter-clockwise loop, the way her koi is drawn turning
+  let dist = 0;
+  function loop(u) { const a = u, cx = pw * 0.56, cy = ph * 0.5, rx = pw * 0.24, ry = ph * 0.22;
+    return [cx + rx * Math.cos(a) + Math.sin(a * 2) * pw * 0.02, cy - ry * Math.sin(a)]; }
+  const verts = new Float32Array(N * M * 2);
+  function pondFrame(t) {
+    if (!pw) fit();
+    const sc = Math.min(pw, ph * 1.3) * 0.58 / W;        // css px per layer px
+    const speed = 0.16, u = t * speed;
+    const head = loop(u), ahead = loop(u + 0.01), heading = Math.atan2(ahead[1] - head[1], ahead[0] - head[0]);
+    // her drawing faces this way at the head
+    const f0 = REST[0], f1 = REST[Math.round(N * 0.22)], restHead = Math.atan2(f0[1] - f1[1], f0[0] - f1[0]);
+    const rot = heading - restHead, c = Math.cos(rot), s = Math.sin(rot);
+    // body wave: small near the head, growing toward the tail, beat and glide
+    const beat = 0.75 + 0.25 * Math.sin(t * 0.7);
+    const D = REST.map((p, i) => { const q = i / (N - 1), A = (0.02 - 0.08 * q + 0.16 * q * q) * BL * 0.55 * beat, y = A * Math.sin(t * 4.2 - q * 5.5);
+      return [p[0] + RN[i][0] * y, p[1] + RN[i][1] * y]; });
+    const DN = normalsOf(D);
+    for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const o = (j / (M - 1) * 2 - 1) * HALF, k = (i * M + j) * 2;
+      const lx = (D[i][0] + DN[i][0] * o - f0[0]) * sc, ly = (D[i][1] + DN[i][1] * o - f0[1]) * sc;
+      verts[k] = (head[0] + lx * c - ly * s) * dpr; verts[k + 1] = (head[1] + lx * s + ly * c) * dpr; }
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pBuf); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(U('res'), glc.width, glc.height);
+    gl.uniform2f(U('off'), 14 * dpr, 22 * dpr); gl.uniform1f(U('shadow'), 0.28); gl.drawElements(gl.TRIANGLES, IDX.length, gl.UNSIGNED_SHORT, 0);
+    gl.uniform2f(U('off'), 0, 0); gl.uniform1f(U('shadow'), 0); gl.drawElements(gl.TRIANGLES, IDX.length, gl.UNSIGNED_SHORT, 0);
+  }
+
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (!ready) return;
+    if (dirty) { compose(vctx, W, H); dirty = false; }
+    if (texDirty || (live && now - lastTex > 300)) { upload(); texDirty = false; lastTex = now; }
+    pondFrame(now / 1000);
+  }
+
+  Promise.all(Object.entries(SRC).map(([k, s]) => load(s).then(i => L[k] = i))).then(() => { ready = true; restore(); replay(); fit(); if (strokes.length) saveSiteKoi(); });
+  document.querySelector('a.home').addEventListener('click', saveSiteKoi);
+  requestAnimationFrame(tick);
+  window.__koi = { get strokes() { return strokes; } };
+})();
+</script>
+</body>
+</html>

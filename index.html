@@ -217,7 +217,8 @@
         <button type="button" data-go="about" style="--i:1">about me</button>
         <button type="button" data-go="works" style="--i:2">currently</button>
         <button type="button" data-go="art" style="--i:3">fine art</button>
-        <button type="button" id="play" style="--i:4">still the water</button>
+        <button type="button" id="paintkoi" style="--i:4">paint a koi</button>
+        <button type="button" id="play" style="--i:5">still the water</button>
       </div>
     </nav>
   </div>
@@ -259,6 +260,12 @@
     { src: 'koi-painted.png', spine: [[172,505],[200,440],[250,375],[325,300],[412,244],[500,206],[560,186],[660,160],[780,138],[900,125]],
       body: 521, half: 285, bodyHalf: 85, phase0: 1.7, freq: 0.62, lap0: 0.5, name: 'painted' }
   ];
+  // a visitor who painted a koi at /koi/ sees it swim here in place of the orange one (saved in their browser only).
+  // The texture is her koi layers at 0.3 scale with a 100px margin, so this rig is her traced spine at 0.3.
+  try { const tex = localStorage.getItem('koi-paint-tex-v1');
+    if (tex && tex.startsWith('data:image/')) Object.assign(KOI[0], { custom: tex, body: 525, half: 228, bodyHalf: 80,
+      spine: [[2350,170],[2340,300],[2330,450],[2280,650],[2160,850],[2000,1000],[1800,1120],[1550,1210],[1250,1290],[950,1340],[600,1400],[250,1460],[20,1500]].map(([x, y]) => [x * 0.3, y * 0.3]) });
+  } catch (e) {}
   const C = [720, 512], RX = 520, RY = 345;  // shared oval, both swim counter-clockwise on screen
   // arc-length table so the koi travel at an even pace around the oval
   const OV = (() => { const n = 2048, d = [0], p = [];
@@ -998,6 +1005,7 @@
     menuList.hidden = !open; menuBtn.setAttribute('aria-expanded', open); }
   menuBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(menuList.hidden); });
   menuList.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { setMenu(false); navTo(b.dataset.go); } });
+  document.getElementById('paintkoi').addEventListener('click', () => { location.href = 'koi/'; });
   addEventListener('click', e => { if (!menuList.hidden && !menuList.contains(e.target)) setMenu(false); });
   addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
   addEventListener('popstate', e => go((e.state && e.state.page) || 'home', false));
@@ -1303,7 +1311,7 @@
     worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=5', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=3' };
   Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
   let loaded = 0;
-  KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.src.replace('.png', '-pad.png') + '?v=2'; });
+  KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.custom || k.src.replace('.png', '-pad.png') + '?v=2'; });
 })();
 </script>
 
