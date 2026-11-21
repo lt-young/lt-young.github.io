@@ -59,6 +59,11 @@
   }
   button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .note { font-size: 16px; color: var(--ink-soft); }
+  /* a quiet way to reach her from any page: "contact" in her script, bottom right, opens the contact card */
+  #contact { font: 400 calc(34 / 1440 * var(--fw)) / 1 "Astoria", cursive; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px;
+    text-shadow: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 8px rgb(0 40 50 / 0.35); transition: color 0.2s; }
+  #contact:hover { color: oklch(0.9 0.08 150); }
+  #contact:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* the scroll threshold: a hairline that fills as you keep scrolling toward the next page, like a current pulling at you */
   #pull { position: absolute; left: 50%; bottom: 3.2%; translate: -50% 0; width: 84px; height: 2px; border-radius: 1px; background: rgb(233 251 249 / 0.22); opacity: 0; pointer-events: none; z-index: 2; }
   #pull.up { bottom: auto; top: 3.2%; }
@@ -207,6 +212,7 @@
     <div id="pull" aria-hidden="true"><i></i></div>
     <div class="bar">
       <span class="note" id="note">scroll down</span>
+      <a id="contact" href="card/">contact</a>
     </div>
     <button id="brand" type="button" aria-label="Lauren Young. Home"><img src="nav-icon.png" alt=""><span>Lauren Young</span></button>
     <nav class="menu" aria-label="Pages">
