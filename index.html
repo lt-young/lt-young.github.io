@@ -1185,9 +1185,9 @@
   // ---- page threshold (like lusion.co): a page only changes after a deliberate scroll past a set amount. A hairline fills as you push and the
   // view leans toward the next page; let go early and it springs back. One gesture moves one page: trackpad momentum can't skip ahead.
   { const pullEl = document.getElementById('pull'), pullBar = pullEl.firstElementChild;
-    // one continuous scroll (Lauren, Nov 24): no hairline, no lean, no stopping per step. Scrolling flows straight through About's words;
-    // each step only waits long enough for its words to arrive, and momentum carries on into the next.
-    const NEED = 180, NEED_STEP = 120, STEP_GAP = 420;
+    // one continuous scroll (Lauren, Nov 24): no hairline, no lean, a light push moves on. But it never skips a line:
+    // one swipe moves one step, and the next swipe is taken once its words have arrived.
+    const NEED = 180, NEED_STEP = 120, STEP_GAP = 650;
     let lastStepT = 0, acc = 0, lastT = 0, lockUntil = 0, ty = null, raf = 0, relaxT = 0;
     const spot = () => page === 'art' ? 'art' : page === 'works' ? 'works' : scrollY > innerHeight * 0.5 ? 'about' : 'landing';
     const NEXT = { landing: ['about', [0, 1]], about: ['works', [1, 0]] };          // currently is a resting place: fine art opens only from its own pad, never from a scroll
@@ -1215,8 +1215,9 @@
       if (!to) return;
       if (Math.sign(d) !== Math.sign(acc)) acc = 0;
       acc += d; pullDir = to[1]; show();
-      if (to[0] === 'step') { if (Math.abs(acc) >= NEED_STEP && now - lastStepT > STEP_GAP) { acc = 0; lastStepT = now; take(to, d); } else if (Math.abs(acc) > NEED_STEP * 2) acc = Math.sign(acc) * NEED_STEP * 2; if (!raf) raf = requestAnimationFrame(relax); return; }
-      if (Math.abs(acc) >= NEED && now - lastStepT > STEP_GAP) { acc = 0; show(); lockUntil = now + 900; take(to, d); return; }
+      // never skip a line: once a step turns, the rest of that swipe (trackpad momentum included) is spent, so every line gets its turn
+      const need = to[0] === 'step' ? NEED_STEP : NEED;
+      if (Math.abs(acc) >= need) { acc = 0; show(); lastStepT = now; lockUntil = now + (to[0] === 'step' ? STEP_GAP : 900); take(to, d); return; }
       if (!raf) raf = requestAnimationFrame(relax);
     }
     window.__pull = () => [acc, lockUntil - performance.now(), spot(), !!camAnim, openIdx];
