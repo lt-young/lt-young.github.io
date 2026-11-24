@@ -251,13 +251,15 @@
 (() => {
   const W = 1440, H = 1024;
   const canvas = document.getElementById('c');
-  const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: false });   // every edge here is soft painted alpha, so multisampling the whole window bought nothing
   let RES = 1.5;
   const pondEl = document.getElementById('pond'), stageEl = pondEl.parentElement;
   const EXT = [0, 0];   // how far the window reaches past her frame on each side, in frame px
-  const frameRect = () => pondEl.getBoundingClientRect();
+  let FR = null;                                   // the frame's box, read once per frame (reading it between style writes forced a fresh layout each time)
+  const frameRect = () => FR || (FR = pondEl.getBoundingClientRect());
   let resCap = 1.75, frameMs = 16.7, frameN = 0;                     // sharp enough on retina, and the water stays smooth; lowered below if frames run long
   function fitRes() {
+    FR = null;
     const pr = frameRect(), sr = stageEl.getBoundingClientRect(), css = pr.width || W, s = css / W;
     EXT[0] = Math.max(0, (pr.left - sr.left) / s); EXT[1] = Math.max(0, (pr.top - sr.top) / s);
     RES = window.__res || Math.max(1, Math.min(resCap, (devicePixelRatio || 1) * s));
@@ -512,7 +514,7 @@
     gl.uniform4f(gl.getUniformLocation(prog, 'hole'), hx, hy, hx + 631 * AS, hy + 1016 * AS);
     gl.uniform2f(gl.getUniformLocation(prog, 'ovrY'), AY - 300, AY + 300);
     gl.uniform1i(gl.getUniformLocation(prog, 't'), 0); gl.uniform1i(gl.getUniformLocation(prog, 'halo'), 1); }
-  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.png?v=5'; }   // fades in with the About water, no hard edge
+  { const im = new Image(); im.onload = () => { gl.activeTexture(gl.TEXTURE1); texFrom(im); gl.activeTexture(gl.TEXTURE0); }; im.src = 'about-halo.webp?v=6'; }   // fades in with the About water, no hard edge
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
   const idx = []; for (let i = 0; i < N-1; i++) for (let j = 0; j < M-1; j++) { const a = i*M+j, b = a+1, c = a+M, d = c+1; idx.push(a,c,b, b,c,d); }
@@ -520,6 +522,14 @@
 
   // ---- water layers, stacked like the Figma frame:
   // base water (with the hue layer) > lettering > painted koi > texture > S-curve lines (linear dodge 15%) > orange koi
+  // how the koi push the water aside and the wakes behind their tails (world px offset w, light glow); shared by the water layers and the ripple pass
+  const RIPPLE = `if (px.x > kbox.x && px.x < kbox.z && px.y > kbox.y && px.y < kbox.w) {   // only near the koi and their wakes
+      for (int i = 0; i < 16; i++) { vec2 r = px - body[i]; float l = length(r) + 1.0; w += r / l * 14.0 * exp(-(l * l) / 22000.0); }
+      for (int i = 0; i < 32; i++) { vec3 tr = trail[i]; if (tr.z >= 0.0) { vec2 r = px - tr.xy; float l = length(r) + 1.0;
+        float life = smoothstep(0.0, 0.6, tr.z) * (1.0 - smoothstep(2.6, 3.8, tr.z));
+        float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
+        w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
+      }`;
   const wvs = `attribute vec2 p; varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform vec4 rect; uniform vec3 cam; uniform vec2 ext;
     void main(){ uv = p*0.5+0.5; uv.y = 1.0-uv.y; wp = rect.xy + uv*rect.zw;
       sp = (wp - cam.xy) * cam.z; gl_Position = vec4((sp.x+ext.x)/(1440.0+2.0*ext.x)*2.0-1.0, 1.0-(sp.y+ext.y)/(1024.0+2.0*ext.y)*2.0, 0.0, 1.0); }`;
@@ -528,7 +538,7 @@
     #else
     precision mediump float;
     #endif
-    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform float op; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32]; uniform vec4 kbox;
+    varying vec2 uv; varying vec2 wp; varying vec2 sp; uniform sampler2D t; uniform vec4 src; uniform vec4 fade; uniform vec4 fadex; uniform float time; uniform float edgeK; uniform float rep; uniform float own; uniform float op; uniform int mode; uniform vec2 body[16]; uniform vec3 trail[32]; uniform vec4 kbox; uniform sampler2D field; uniform vec2 fres; uniform float useF;
     void main(){
       // one continuous pond: texture coords come from world position, mirrored past the image edge,
       // so a section's water can run on under the next one while it cross-fades
@@ -543,12 +553,9 @@
                     cos(q.x*6.0 - time*0.31) + sin((q.x-q.y)*9.0 + time*0.22)) * 0.0016;
       // the koi push the water aside as they pass, and leave a soft rippling wake behind the tail
       vec2 px = wp, w = vec2(0.0); float glow = 0.0;
-      if (px.x > kbox.x && px.x < kbox.z && px.y > kbox.y && px.y < kbox.w) {   // only near the koi and their wakes
-      for (int i = 0; i < 16; i++) { vec2 r = px - body[i]; float l = length(r) + 1.0; w += r / l * 14.0 * exp(-(l * l) / 22000.0); }
-      for (int i = 0; i < 32; i++) { vec3 tr = trail[i]; if (tr.z >= 0.0) { vec2 r = px - tr.xy; float l = length(r) + 1.0;
-        float life = smoothstep(0.0, 0.6, tr.z) * (1.0 - smoothstep(2.6, 3.8, tr.z));
-        float wave = life * exp(-tr.z * 0.45) * sin(l * 0.055 - tr.z * 2.4) * exp(-l / 210.0);
-        w += r / l * 13.0 * wave; glow += max(wave, 0.0); } }
+      if (mode != 3) {
+      if (useF > 0.5) { vec3 f = texture2D(field, gl_FragCoord.xy / fres).xyz; w = f.xy; glow = f.z; }   // the koi ripples, worked out once per frame
+      else ${RIPPLE}
       }
       d += w / vec2(1440.0, 1024.0);
       // past her frame the window shows only water: another page's words, photo and pads stay out of the margins (edgeK > 0 only for those), the current page's are never cut
@@ -566,10 +573,46 @@
     }`;
   const wprog = gl.createProgram(); gl.attachShader(wprog, sh(gl.VERTEX_SHADER, wvs)); gl.attachShader(wprog, sh(gl.FRAGMENT_SHADER, wfs)); gl.linkProgram(wprog);
   const wAP = gl.getAttribLocation(wprog, 'p');
+  // ---- the ripple field: the koi wakes are worked out once per frame, at a quarter of the canvas size, into a small float texture
+  // that every water layer reads (they used to redo all 48 wake points per pixel, layer after layer). Same ripples, a fraction of the work.
+  const rvs = `attribute vec2 p; varying vec2 wp; uniform vec3 cam; uniform vec2 ext;
+    void main(){ vec2 sp = vec2((p.x * 0.5 + 0.5) * (1440.0 + 2.0 * ext.x) - ext.x, (0.5 - p.y * 0.5) * (1024.0 + 2.0 * ext.y) - ext.y);
+      wp = sp / cam.z + cam.xy; gl_Position = vec4(p, 0.0, 1.0); }`;
+  const rfs = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    #else
+    precision mediump float;
+    #endif
+    varying vec2 wp; uniform vec2 body[16]; uniform vec3 trail[32]; uniform vec4 kbox;
+    void main(){ vec2 px = wp, w = vec2(0.0); float glow = 0.0;
+      ${RIPPLE}
+      gl_FragColor = vec4(w, glow, 1.0); }`;
+  const FIELD = (() => {
+    const hf = gl.getExtension('OES_texture_half_float'), hfl = gl.getExtension('OES_texture_half_float_linear');
+    gl.getExtension('EXT_color_buffer_half_float');
+    if (!hf || !hfl) return null;
+    const rprog = gl.createProgram(); gl.attachShader(rprog, sh(gl.VERTEX_SHADER, rvs)); gl.attachShader(rprog, sh(gl.FRAGMENT_SHADER, rfs)); gl.linkProgram(rprog);
+    if (!gl.getProgramParameter(rprog, gl.LINK_STATUS)) return null;
+    const F = { prog: rprog, ap: gl.getAttribLocation(rprog, 'p'), w: 0, h: 0, tex: gl.createTexture(), fb: gl.createFramebuffer(), ok: true,
+      u: { c: gl.getUniformLocation(rprog, 'cam'), e: gl.getUniformLocation(rprog, 'ext'), b: gl.getUniformLocation(rprog, 'body'), tr: gl.getUniformLocation(rprog, 'trail'), k: gl.getUniformLocation(rprog, 'kbox') } };
+    F.size = (w, h) => {
+      if (w === F.w && h === F.h) return F.ok; F.w = w; F.h = h;
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, F.tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, hf.HALF_FLOAT_OES, null);
+      [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(p => gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, F.fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, F.tex, 0);
+      F.ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE; gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return F.ok;
+    };
+    return F;
+  })();
   const wU = { t: gl.getUniformLocation(wprog, 'time'), m: gl.getUniformLocation(wprog, 'mode'), b: gl.getUniformLocation(wprog, 'body'), tr: gl.getUniformLocation(wprog, 'trail'), r: gl.getUniformLocation(wprog, 'rect'), sr: gl.getUniformLocation(wprog, 'src'), f: gl.getUniformLocation(wprog, 'fade'), fx: gl.getUniformLocation(wprog, 'fadex'), c: gl.getUniformLocation(wprog, 'cam') };
   const uCam = gl.getUniformLocation(prog, 'cam'); let cam = 0, camX = 0, camZ = 1;
   const view = () => [camX - EXT[0] / camZ, cam - EXT[1] / camZ, camX + (1440 + EXT[0]) / camZ, cam + (1024 + EXT[1]) / camZ];
-  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), wOp = gl.getUniformLocation(wprog, 'op'), wKbox = gl.getUniformLocation(wprog, 'kbox'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext');
+  const wEdge = gl.getUniformLocation(wprog, 'edgeK'), wRep = gl.getUniformLocation(wprog, 'rep'), wOwn = gl.getUniformLocation(wprog, 'own'), wOp = gl.getUniformLocation(wprog, 'op'), wKbox = gl.getUniformLocation(wprog, 'kbox'), uEdge = gl.getUniformLocation(prog, 'edge'), uExt = gl.getUniformLocation(prog, 'ext'), wExt = gl.getUniformLocation(wprog, 'ext'), wUseF = gl.getUniformLocation(wprog, 'useF'), wFres = gl.getUniformLocation(wprog, 'fres');
+  gl.useProgram(wprog); gl.uniform1i(gl.getUniformLocation(wprog, 'field'), 2); gl.useProgram(prog);
   const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   const bodyArr = new Float32Array(32), trailArr = new Float32Array(96);
   function texFrom(img) {
@@ -589,6 +632,20 @@
     for (let i = 0; i < trailArr.length; i += 3) if (trailArr[i + 2] >= 0) { x0 = Math.min(x0, trailArr[i]); x1 = Math.max(x1, trailArr[i]); y0 = Math.min(y0, trailArr[i + 1]); y1 = Math.max(y1, trailArr[i + 1]); }
     gl.useProgram(wprog); gl.uniform4f(wKbox, x0 - 1000, y0 - 1000, x1 + 1000, y1 + 1000);
     gl.uniform3f(wU.c, camX, cam, camZ); gl.uniform2f(wExt, EXT[0], EXT[1]); gl.uniform1f(wU.t, time); gl.uniform2fv(wU.b, bodyArr); gl.uniform3fv(wU.tr, trailArr);
+    const fw = Math.max(1, Math.ceil(canvas.width / 4)), fh = Math.max(1, Math.ceil(canvas.height / 4));
+    const useF = !!FIELD && !window.__noField && FIELD.size(fw, fh);
+    gl.uniform1f(wUseF, useF ? 1 : 0); gl.uniform2f(wFres, canvas.width, canvas.height);
+    if (useF) {                                        // paint the ripple field once, then every water layer just looks it up
+      gl.useProgram(FIELD.prog);
+      gl.uniform3f(FIELD.u.c, camX, cam, camZ); gl.uniform2f(FIELD.u.e, EXT[0], EXT[1]); gl.uniform2fv(FIELD.u.b, bodyArr); gl.uniform3fv(FIELD.u.tr, trailArr);
+      gl.uniform4f(FIELD.u.k, x0 - 1000, y0 - 1000, x1 + 1000, y1 + 1000);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, FIELD.fb); gl.viewport(0, 0, fw, fh); gl.disable(gl.BLEND);
+      gl.disableVertexAttribArray(aUV); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(FIELD.ap); gl.vertexAttribPointer(FIELD.ap, 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.enable(gl.BLEND); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, FIELD.tex); gl.activeTexture(gl.TEXTURE0);
+      gl.useProgram(wprog);
+    }
   }
   const RECT = { base: [0,0,1440,1024], letter: [0,0,1440,1024], texture: [0,0,1440,1024], lines: [0,0,1440,1024],
     aboutWater: [AX,AY,1440*AS,1024*AS], aboutLetter: [AX,AY,1440*AS,320*AS], aboutText: [...A(119,74),991*AS,208*AS], photo: [...A(809.27,7.7),830.38*AS,1074.24*AS] };   // About, from her About 1-3 and transition frames (1728 x 1117, fitted to the frame's height): "hi, I'm Lauren" top left, her photo on the right
@@ -708,8 +765,8 @@
   // ---- Lauren's lily pad in the About section: stays put, turns very slightly in the current,
   // and gives a small nudge and turn when a koi swims over it, then settles back.
   // her second pad sits in the bottom right corner (completed into a whole pad and nudged in so none of it is cut off); it moves even less
-  const PADS = [{ c: A(186.5, 251 + 203), w: 373 * AS, h: 406 * AS, src: 'lilypad.png?v=2', k: 1 },
-                { c: A(1262, 840), w: 360 * AS, h: 360 * AS, src: 'lilypad2-full.png', k: 0.5 }];
+  const PADS = [{ c: A(186.5, 251 + 203), w: 373 * AS, h: 406 * AS, src: 'lilypad.webp?v=3', k: 1 },
+                { c: A(1262, 840), w: 360 * AS, h: 360 * AS, src: 'lilypad2-full.webp?v=1', k: 0.5 }];
   PADS.forEach(P => { Object.assign(P, { a: 0, va: 0, dx: 0, dy: 0, vx: 0, vy: 0, tex: null }); const im = new Image(); im.onload = () => { P.tex = texFrom(im); }; im.src = P.src; });
   const padPB = gl.createBuffer(), padPos = new Float32Array(8);
   function stepPad(dt) { PADS.forEach(P => stepOnePad(P, dt)); }
@@ -1031,7 +1088,13 @@
   const tilesEl = document.getElementById('tiles'), detail = document.getElementById('detail');
   const dTitle = document.getElementById('dtitle'), dMeta = document.getElementById('dmeta'), dDesc = document.getElementById('ddesc'), dImg = document.getElementById('dimg'), dVid = document.getElementById('dvid'), dExtra = document.getElementById('dextra');
   let dMain = dImg;
-  ART.forEach(a => { [a.id + '.jpg'].forEach(f => { const im = new Image(); im.src = 'art/' + f; }); });          // warm the cache so a slide opens with its picture
+  // the fine art pictures and videos wait until you head that way (currently, or the art page itself): a first visit to the landing page no longer downloads ~10 MB of art video
+  let artAwake = false;
+  function wakeArt() {
+    if (artAwake) return; artAwake = true;
+    ART.forEach(a => { const im = new Image(); im.src = 'art/' + a.id + '.jpg'; });          // warm the cache so a slide opens with its picture
+    tileBtns.forEach(b => { const m = b._media; if (!m) return; if (m.dataset.poster) { m.poster = m.dataset.poster; m.preload = 'auto'; } m.src = m.dataset.src; if (m.tagName === 'VIDEO') m.play().catch(() => {}); });
+  }
   const FLOAT = ART.map((a, i) => {                 // each piece's resting spot (her gallery layout, loosened a little), tilt and drift rhythm
     const r = n => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
     const w = 360 * 1.4, h = w * a.photo[3] / a.photo[2], cx = a.spot[0] + 180, cy = a.spot[1] + 180 * a.photo[3] / a.photo[2];   // her Figma spot, each piece 1.4x bigger around its own centre
@@ -1053,16 +1116,17 @@
     const b = document.createElement('button'); b.type = 'button'; b.className = 'tilelink'; b.hidden = true;
     b.setAttribute('aria-label', a.title + ', details'); tilesEl.appendChild(b);
     let im;
-    if (a.vid || a.tileVid) { im = document.createElement('video'); Object.assign(im, { src: 'art/' + (a.vid || a.tileVid) + '.mp4', poster: 'art/' + (a.tilePoster || a.vid + '-poster') + '.jpg', muted: true, loop: true, autoplay: true, playsInline: true }); im.setAttribute('aria-hidden', 'true'); }   // plays like a GIF
-    else { im = document.createElement('img'); im.src = 'art/' + a.id + '.jpg'; im.alt = ''; im.draggable = false; }
-    const cap = document.createElement('span'); cap.textContent = a.title; b.append(im, cap);
+    if (a.vid || a.tileVid) { im = document.createElement('video'); Object.assign(im, { muted: true, preload: 'none', loop: true, autoplay: true, playsInline: true }); im.setAttribute('aria-hidden', 'true'); im.dataset.src = 'art/' + (a.vid || a.tileVid) + '.mp4'; im.dataset.poster = 'art/' + (a.tilePoster || a.vid + '-poster') + '.jpg'; }   // plays like a GIF
+    else { im = document.createElement('img'); im.dataset.src = 'art/' + a.id + '.jpg'; im.alt = ''; im.draggable = false; }
+    const cap = document.createElement('span'); cap.textContent = a.title; b.append(im, cap); b._media = im;
     b.addEventListener('click', e => openArt(i, b, e.detail === 0));   // opens on click; keyboard opens move focus into the slide   // keyboard opens move focus into the slide
     return b;
   });
-  let openIdx = -1, openFrom = null, dAnim = 0;
+  let openIdx = -1, openFrom = null, dAnim = 0, detailP = 0;
   // the piece itself zooms up from where it floats to its spot on the slide; the pond blurs behind it and the words settle in
   let zoomFrom = null;
   function setP(p) {
+    detailP = p;
     detail.style.setProperty('--p', p);
     if (!zoomFrom) { dMain.style.transform = ''; return; }
     const pr = dMain.offsetParent.getBoundingClientRect(), L = dMain.offsetLeft, T = dMain.offsetTop, W = dMain.offsetWidth, H = dMain.offsetHeight;
@@ -1140,6 +1204,7 @@
   let floatT = null;
   function floatPieces() {
     const show = page === 'art' || camX + 1440 / camZ > GX;     // the pond is there whenever the view reaches the art page
+    if (show || page === 'works') wakeArt();
     const now = performance.now() / 1000, dt = floatT === null ? 0 : Math.min(0.05, now - floatT); floatT = now;
     const heads = show && running ? KOI.map(k => k.tp && k.tp.length ? add(trackAt(k, k.dist).p, [koiDX, 0]) : null) : [];
     const r = frameRect(), k = r.width / 1440 * camZ;
@@ -1159,13 +1224,14 @@
         f.a = Math.max(-0.08, Math.min(0.08, f.a));
       }
       const sx = (w[0] + f.ox - camX) * k, sy = (w[1] + f.oy - cam) * k;
-      b.style.width = (f.w * AS * k) + 'px';
-      b.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`; b.style.fontSize = (16 * AS * k) + 'px';   // floats, never turns
+      const bw = f.w * AS * k; if (b._w !== bw) { b._w = bw; b.style.width = bw + 'px'; b.style.fontSize = (16 * AS * k) + 'px'; }
+      b.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`;   // floats, never turns
     });
     if (show && running && page === 'art') dirty = true;
   }
   const artMax = () => Math.max(0, GW * AS - (1440 + 2 * EXT[0]) / ZA), artK = () => (frameRect().width || innerWidth) / 1440 * ZA;   // world px of sideways glide, screen px per world px
   function scrollState() {
+    FR = null;
     const y = scrollY, p = Math.max(0, Math.min(1, y / Math.max(1, innerHeight)));
     const e = 1 - Math.pow(1 - p, 2.2);
     if (page === 'art') { artX = Math.min(artMax(), y / artK()); lastScrollT = performance.now(); dirty = true; return; }
@@ -1237,12 +1303,17 @@
   scrollState(); syncUI(); stepCam(0);
   { const h = location.hash; if (h === '#currently' || h === '#fine-art') { go('works', false); if (h === '#fine-art') go('art', false); camAnim = null; } }
   ownerShown = page === 'works' ? 'worksWater' : page === 'art' ? 'artWater' : 'base'; ownerK = 1;   // a fresh load starts settled on its page
-  addEventListener('resize', () => { fitRes(); dirty = true; });
+  let resized = false, frozen = false;
+  addEventListener('resize', () => { fitRes(); dirty = true; resized = true; });
   function frame(now) {
+    FR = null;
+    // while a piece is open the pond sits behind a soft blur: hold it still there, so the browser is not re-blurring a moving pond every frame
+    const hold = openIdx >= 0 && detailP >= 1 && !resized; resized = false;
+    if (hold !== frozen) { frozen = hold; tileBtns.forEach(b => { const m = b._media; if (m && m.tagName === 'VIDEO' && m.src) { if (frozen) m.pause(); else m.play().catch(() => {}); } }); }
     const raw = last === null ? 0 : now - last, dt = Math.min(0.05, raw / 1000); last = now;
     if (raw > 0 && raw < 120 && running) {         // frames running long (a busy laptop GPU): draw the pond at a lower resolution so motion stays smooth
       frameMs += (raw - frameMs) * 0.05; if (++frameN > 90 && frameMs > 21 && resCap > 1) { resCap = Math.max(1, resCap - 0.25); frameN = 0; fitRes(); dirty = true; } }
-    if (running || t === 0 || dirty) { dirty = false;
+    if (!frozen && (running || t === 0 || dirty)) { dirty = false;
       t += dt; stepCam(dt); placeUI();
       { // the page you're on owns the window: its water fills every margin and later pages' water stays out of them
         const T = page === 'works' ? 'worksWater' : page === 'art' ? 'artWater' : scrollY > innerHeight * 0.5 ? 'aboutWater' : 'base';
@@ -1260,7 +1331,7 @@
       stepLeaves(running ? dt : 0, t); stepPad(running ? dt : 0);
       if (LAYER.base && !LAYER.pond) LAYER.pond = LAYER.base;
       drawLayer('pond', 0);                            // one big pond: her water runs on under every page and every transition
-      drawLayer('base', 0); drawLayer('letter', 3);
+      drawLayer('letter', 3);                          // (the base water is the pond itself: drawing it again on top only repainted the same pixels)
       drawLayer('aboutWater', 0); drawLayer('worksWater', 0); drawLayer('artWater', 0);
       drawLeaves(t);                                   // leaves sit under the koi
       gl.useProgram(prog); koiCam(true); draw(painted); koiCam(false);
@@ -1282,12 +1353,17 @@
     if (window.__grab) { window.__shot = canvas.toDataURL('image/png'); window.__grab = false; }   // used only to export a still
     requestAnimationFrame(frame);
   }
-  const LAYER_SRC = { base: 'water-base.png?v=5', letter: 'lettering.png?v=1', texture: 'water-texture.png?v=2', lines: 'water-lines.png?v=2',
-    aboutWater: 'about-water.png?v=3', aboutLetter: 'about-letter.png?v=2', photo: 'about-photo.png?v=8', aboutText: 'about-text.png?v=7', aboutStep0: 'about-step-0.png?v=1', aboutStep1: 'about-step-1.png?v=1', aboutStep2: 'about-step-2.png?v=1', aboutStep3: 'about-step-3.png?v=3',
-    worksWater: 'works-water.png?v=2', worksTop: 'works-top.png?v=6', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.png?v=3' };
-  Object.entries(LAYER_SRC).forEach(([k, src]) => { const im = new Image(); im.onload = () => { LAYER[k] = texFrom(im); }; im.src = src; });
+  const LAYER_SRC = { base: 'water-base.webp?v=6', letter: 'lettering.webp?v=2', texture: 'water-texture.webp?v=3', lines: 'water-lines.webp?v=3',
+    aboutWater: 'about-water.webp?v=4', photo: 'about-photo.webp?v=9', aboutText: 'about-text.webp?v=8', aboutStep0: 'about-step-0.webp?v=2', aboutStep1: 'about-step-1.webp?v=2', aboutStep2: 'about-step-2.webp?v=2', aboutStep3: 'about-step-3.webp?v=4',
+    worksWater: 'works-water.webp?v=3', worksTop: 'works-top.webp?v=7', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.webp?v=4' };
+  // the landing's own water and lettering come first; the later pages' pictures follow once those are in (all at once when you arrive on a later page)
+  { const FIRST = ['base', 'letter', 'texture', 'lines'], later = !!location.hash && location.hash !== '#';
+    let left = FIRST.length;
+    const load = k => { const im = new Image(); im.onload = im.onerror = () => { if (im.naturalWidth) LAYER[k] = texFrom(im); dirty = true; if (FIRST.includes(k) && --left === 0 && !later) rest(); }; im.src = LAYER_SRC[k]; };
+    const rest = () => Object.keys(LAYER_SRC).filter(k => !FIRST.includes(k)).forEach(load);
+    FIRST.forEach(load); if (later) rest(); }
   let loaded = 0;
-  KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.custom || k.src.replace('.png', '-pad.png') + '?v=2'; });
+  KOI.forEach(k => { const img = new Image(); img.onload = () => { setup(k, img); if (++loaded === KOI.length) requestAnimationFrame(frame); }; img.src = k.custom || k.src.replace('.png', '-pad.webp') + '?v=3'; });
 })();
 </script>
 
