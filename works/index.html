@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Works · Lauren Young</title>
 <meta name="description" content="Lauren Young's case studies, laid out as lily pads in a koi pond.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400&display=swap">
 <style>
 @font-face{font-family:"Melodrame";src:url(../fonts/melodrame.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"Astoria";src:url(../fonts/astoria.woff2) format("woff2");font-display:swap}
@@ -43,15 +44,21 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 .top{top:0;padding-top:max(16px,env(safe-area-inset-top,0px))}
 .ui{bottom:0;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
 .top > *,.ui > *{pointer-events:auto}
-.hint{transition:opacity .6s}
 .soon{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .4s;pointer-events:none}
 [hidden]{display:none !important}
-/* the koi say what to do next: a small bubble beside the koi nearest the middle, quiet as soon as you act */
-#koisay{position:fixed;left:0;top:0;z-index:4;margin:0;pointer-events:none;white-space:nowrap;color:var(--chip-ink);font:400 24px/1.1 "Astoria",cursive;text-shadow:0 1px 3px rgb(0 30 40 / 0.45);padding:.45em .9em .5em;opacity:0;translate:-50% -100%;transition:opacity .45s ease}
-#koisay svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 1px 2px rgb(0 30 40 / 0.35))}
-#koisay svg path{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
-#koisay.on{opacity:1}
-#koisay.below{translate:-50% 0}
+/* a small note that stays in the bottom left corner and says how to move here: scrolling up and down glides the pond left and right,
+   so it shows a scroll wheel with arrows to the sides and a line of how far along you are */
+#tip{display:flex;align-items:center;gap:12px;max-width:min(360px,62vw);margin:0;padding:10px 16px 10px 12px;border-radius:14px;
+  background:rgb(4 42 52 / 0.78);border:1px solid rgb(233 251 249 / 0.16);color:var(--chip-ink);box-shadow:0 4px 16px rgb(0 20 30 / 0.25);
+  font:400 17px/1.3 "Crimson Text",Georgia,serif;letter-spacing:.01em;pointer-events:none!important}
+#tip svg{flex:none;width:30px;height:30px;overflow:visible}
+#tip svg path,#tip svg rect{fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+#tip .tt{display:grid;gap:6px}
+#tip .tt span{transition:opacity .2s ease}
+#tip .tt span.swap{opacity:0}
+#tip .bar2{height:2px;border-radius:1px;background:rgb(233 251 249 / 0.22);overflow:hidden}
+#tip .bar2 i{display:block;height:100%;background:var(--chip-ink);transform-origin:0 50%;transform:scaleX(0)}
+#tip.nobar .bar2{display:none}
 </style>
 </head>
 <body>
@@ -69,11 +76,13 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   <span></span>
 </div>
 <div class="ui">
-  <span class="chip hint" id="hint">scroll to follow the current</span>
+  <p id="tip" role="status" aria-live="polite">
+    <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="10" y="4" width="10" height="16" rx="5"/><path d="M15 8 V11"/><path d="M3 12 H7 M4.8 10 L3 12 L4.8 14 M23 12 H27 M25.2 10 L27 12 L25.2 14"/></svg>
+    <span class="tt"><span id="hint">Scroll up and down to move left and right</span><span class="bar2"><i></i></span></span>
+  </p>
   <button class="chip still" id="still" type="button" aria-pressed="false">still the water</button>
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
-<p id="koisay" role="status" aria-live="polite"><span></span><svg aria-hidden="true"></svg></p>
 
 <script src="scenes.js?v=10"></script>
 <script>
@@ -551,7 +560,6 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     fgc.setAttribute('aria-label', next === 'works' ? 'Works: lily pads for each project, each labelled with its name, the kind of work and the year.' : `${S.name} case study`);
     document.title = (next === 'works' ? 'Works' : S.name) + ' · Lauren Young';
     backBtn.textContent = next === 'works' ? 'back to currently' : 'back to works';
-    hint.textContent = next === 'works' ? 'scroll along the pond, then pick a pad' : 'scroll to follow the current, click any piece to see it up close';
     sizeSpacer(); scrollTo(0, 0);
     buildHits();
     // open out of the pad you came through: its own title pad on a case study, or that project's pad on the landing
@@ -575,7 +583,6 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 
   function stepCam(dt) {
     const tg = baseTarget();
-    hint.style.opacity = tg.p > 0.02 || zoomR ? 0 : 1;
     if (anim && anim.kind === 'cross') return;
     if (anim && anim.kind === 'open') {             // after a dive it keeps moving (eases out only), otherwise it eases in and out
       anim.t += dt; const x = Math.min(1, anim.t / anim.dur), u = anim.flow ? Math.sin(x * Math.PI / 2) : easeIO(x);
@@ -636,43 +643,19 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
   { const h = location.hash.slice(1), first = SCENES[h] && h !== 'works' ? h : 'works';
     veil.style.transition = 'none'; veil.style.opacity = 1; anim = { kind: 'cross' };     // arriving from the dive on currently: start on the pad green
     Promise.all([loadImg(SCENES[first].img), loadImg(WATER)]).then(() => { anim = null; openScene(first, null); }); }
-  // ---- the koi talk: after a quiet moment, the koi nearest the middle tells you what to do here; any scroll, key or click hushes it
-  { const say = document.getElementById('koisay');
-    let quiet = performance.now(), shown = '', drawn = null;
-    // a hand-drawn loop around the words, like a pen doodle that doesn't quite close, with a little tail toward the koi's mouth
-    function inkLoop(el, below, side) {
-      const w = el.offsetWidth, h = el.offsetHeight, cx = w / 2, cy = h / 2, tx = w / 2 - side * w * 0.32, rx = w / 2 + 10, ry = h / 2 + 6, s1 = Math.random() * 6, s2 = Math.random() * 6;
-      const pts = [], a0 = -2.1, A = 2 * Math.PI + 0.55, n = 72, e = 2 / 2.8;
-      for (let i = 0; i <= n; i++) {
-        const a = a0 + A * i / n, j = 1 + 0.022 * Math.sin(3 * a + s1) + 0.014 * Math.sin(7 * a + s2) + 0.05 * i / n;
-        const c = Math.cos(a), sn = Math.sin(a);
-        pts.push([cx + rx * j * Math.sign(c) * Math.abs(c) ** e, cy + ry * j * Math.sign(sn) * Math.abs(sn) ** e]);
-      }
-      const f = v => v.toFixed(1), Y = y => below ? h - y : y;
-      const loop = 'M' + pts.map(p => f(p[0]) + ' ' + f(below ? h - p[1] : p[1])).join(' L');
-      const tail = `M${f(tx - 10)} ${f(Y(h + 4))} Q${f(tx - 3)} ${f(Y(h + 11))} ${f(tx + 1)} ${f(Y(h + 20))} Q${f(tx + 2)} ${f(Y(h + 11))} ${f(tx + 9)} ${f(Y(h + 5))}`;
-      el.querySelector('svg').innerHTML = `<path d="${loop}"/><path d="${tail}"/>`;
-    }
-
-    const hush = () => { quiet = performance.now(); if (shown) { shown = ''; say.classList.remove('on'); } };
-    for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown', 'scroll']) addEventListener(ev, hush, { passive: true });
-    const line = () => anim ? '' : zoomR ? 'click anywhere to step back' : id === 'works' ? 'click a lily pad to open it'
-      : scrollP() < 0.05 ? 'scroll to follow the current' : 'click a piece to see it up close';
+  // ---- the corner note: always there, always saying how to move on this page (no more koi talking)
+  { const tip = document.getElementById('tip'), bar = tip.querySelector('.bar2 i');
+    const touch = matchMedia('(pointer: coarse)').matches, sw = touch ? 'Swipe up and down' : 'Scroll up and down';
+    let shown = '', swapT = 0;
+    const words = () => zoomR ? 'Click anywhere to step back' : id === 'works' ? sw + ' to move left and right. Click a lily pad to open it'
+      : sw + ' to move along. Click any piece to see it up close';
     const tick = () => {
       requestAnimationFrame(tick);
-      const want = performance.now() - quiet > (shown ? 0 : 2600) ? line() : '';
-      if (want !== shown) { shown = want; if (want) { say.firstChild.textContent = want; drawn = null; } say.classList.toggle('on', !!want); }
-      if (!shown) return;
-      let best = null;
-      for (const k of KOI) { if (!k.ready || !k.tp || koiK < 0.5) continue;
-        const a = trackAt(k, k.dist), q = toScreen(a.p[0], a.p[1]), d = Math.hypot(q[0] - VW / 2, q[1] - VH / 2); if (!best || d < best.d) best = { q, d, t: a.tan }; }
-      // the words come out just ahead of its mouth: above when it swims up, below when it swims down, so they never sit on the koi
-      const bw = say.offsetWidth, bh = say.offsetHeight, below = !!best && best.t[1] > 0.2;
-      const q = best ? [best.q[0] + best.t[0] * 60, best.q[1] + best.t[1] * 60 + (below ? 20 : -20)] : [VW / 2, VH * 0.75];
-      say.classList.toggle('below', below); const side = best && Math.abs(best.t[0]) > 0.35 ? Math.sign(best.t[0]) : 0, key = below + ':' + side;   // the words lean out ahead of the koi, away from its body
-      if (drawn !== key) { drawn = key; inkLoop(say, below, side); }
-      const x = Math.max(16 + bw / 2, Math.min(VW - 16 - bw / 2, q[0] + side * bw * 0.32)), y = below ? Math.max(70, Math.min(VH - 70 - bh, q[1])) : Math.max(70 + bh, Math.min(VH - 70, q[1]));
-      say.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const w = words();
+      if (w !== shown) { const first = !shown; shown = w; clearTimeout(swapT);
+        if (first) hint.textContent = w; else { hint.classList.add('swap'); swapT = setTimeout(() => { hint.textContent = w; hint.classList.remove('swap'); }, 200); } }
+      tip.classList.toggle('nobar', !!zoomR);
+      bar.style.transform = `scaleX(${scrollP().toFixed(3)})`;
     };
     requestAnimationFrame(tick); }
   window.__works = () => ({ id, cam: { ...cam }, anim: anim && anim.kind, zoom: !!zoomR, heads: KOI.map(k => k.head && k.head.map(Math.round)) });

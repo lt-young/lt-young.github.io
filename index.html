@@ -132,15 +132,55 @@
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); cursor: pointer; transform-origin: 50% 50%;
   }
   .padlink[hidden] { display: none; }
-  /* the koi say what to do next: a small bubble that rides beside the leading koi's head and goes quiet as soon as you act */
-  /* the koi say what to do next: her script, loose white ink and a doodled loop with a tail toward the koi's mouth; quiet as soon as you act */
-  #koisay { position: absolute; left: 0; top: 0; z-index: 3; margin: 0; pointer-events: none; white-space: nowrap; color: var(--ink);
-    font: 400 calc(30 / 1440 * var(--fw)) / 1.1 "Astoria", cursive; font-size: max(19px, calc(30 / 1440 * var(--fw))); letter-spacing: 0;
-    text-shadow: 0 1px 3px rgb(0 30 40 / 0.45); padding: 0.45em 0.9em 0.5em; opacity: 0; translate: -50% -100%; transition: opacity .45s ease; }
-  #koisay svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgb(0 30 40 / 0.35)); }
-  #koisay svg path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
-  #koisay.on { opacity: 1; }
-  #koisay.below { translate: -50% 0; }
+  /* where you are, like a trail of stars on a friend's site: a hairline down the right edge with one checkpoint per stop on the scroll
+     (welcome, her three About lines, "follow the current", then currently). Passed stops are filled in, the one you're on glows,
+     and "scroll" sits under it so nobody has to guess. Hover it to read every stop. */
+  #guide { position: absolute; left: calc(30 / 1440 * var(--fw)); top: 50%; translate: 0 -50%; z-index: 2; margin: 0; pointer-events: auto;
+    padding: 24px 40px 24px 14px; margin-left: -14px; display: grid; justify-items: start;
+    background: radial-gradient(ellipse closest-side at 30% 50%, rgb(2 40 50 / 0.32), rgb(2 40 50 / 0) 100%); gap: calc(14 / 1440 * var(--fw)); color: var(--ink); transition: opacity 0.3s ease; }
+  #guide[hidden] { display: none; }
+  #guide ol { list-style: none; margin: 0; padding: 0; position: relative; display: grid; gap: calc(30 / 1440 * var(--fw)); justify-items: start;
+    --dot: max(7px, calc(9 / 1440 * var(--fw))); }
+  #guide ol::before, #guide ol::after { content: ""; position: absolute; left: calc(var(--dot) / 2 - 0.5px); top: calc(var(--dot) / 2); bottom: calc(var(--dot) / 2);
+    width: 1px; background: rgb(233 251 249 / 0.28); }
+  #guide ol::after { background: var(--ink); transform-origin: 50% 0; transform: scaleY(var(--done, 0)); transition: transform 0.45s cubic-bezier(.2,.7,.2,1); }
+  #guide li { position: relative; display: flex; flex-direction: row-reverse; align-items: center; gap: calc(12 / 1440 * var(--fw)); height: var(--dot); }
+  #guide li span { font: 400 max(15px, calc(24 / 1440 * var(--fw))) / 1 "Astoria", cursive; white-space: nowrap; letter-spacing: 0;
+    text-shadow: 0 1px 3px rgb(0 30 40 / 0.55); opacity: 0; translate: -6px 0; transition: opacity 0.25s ease, translate 0.25s ease; }
+  #guide li i { position: relative; z-index: 1; flex: none; width: var(--dot); height: var(--dot); border-radius: 50%; box-sizing: border-box;
+    border: 1px solid rgb(233 251 249 / 0.7); background: oklch(0.36 0.06 205); transition: background 0.3s, scale 0.3s, box-shadow 0.3s; }
+  #guide li.done i { background: var(--ink); border-color: var(--ink); }
+  #guide li.on i { background: var(--ink); border-color: var(--ink); scale: 1.45; box-shadow: 0 0 0 3px rgb(233 251 249 / 0.18), 0 0 12px rgb(233 251 249 / 0.7); }
+  #guide li.on span, #guide:hover li span { opacity: 1; translate: 0 0; }
+  #guide:hover li:not(.on) span { opacity: 0.6; }
+  #guidecue { margin: 0; display: grid; justify-items: start; gap: 3px;
+    font: 400 max(15px, calc(19 / 1440 * var(--fw))) / 1.25 "Crimson Text", Georgia, serif; letter-spacing: 0.04em; color: var(--ink-soft); text-shadow: 0 1px 3px rgb(0 30 40 / 0.55); }
+  #guidecue b { font-weight: 400; color: var(--ink); white-space: nowrap; }
+  #guidecue svg { width: 12px; height: 16px; overflow: visible; }
+  #guidecue path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  @media (prefers-reduced-motion: no-preference) { #guidecue svg { animation: nudge 1.8s ease-in-out infinite; } }
+  @keyframes nudge { 50% { translate: 0 3px; } }
+
+  /* a small note that stays in the bottom left corner and says how to move around the page you're on.
+     On sideways pages it shows a little scroll wheel with arrows to the sides and a line of how far along you are. */
+  #tip { position: absolute; left: calc(22 / 1440 * var(--fw)); bottom: calc(22 / 1440 * var(--fw)); z-index: 3; margin: 0; pointer-events: none;
+    display: flex; align-items: center; gap: 12px; max-width: min(360px, 70vw); padding: 10px 16px 10px 12px; border-radius: 14px;
+    background: rgb(4 42 52 / 0.78); border: 1px solid rgb(233 251 249 / 0.16); color: var(--ink); box-shadow: 0 4px 16px rgb(0 20 30 / 0.25);
+    font: 400 max(16px, calc(19 / 1440 * var(--fw))) / 1.3 "Crimson Text", Georgia, serif; letter-spacing: 0.01em; transition: opacity 0.25s ease, translate 0.3s cubic-bezier(.2,.7,.2,1); }
+  #tip.off { opacity: 0; translate: 0 8px; }
+  #tip svg { flex: none; width: 30px; height: 30px; overflow: visible; }
+  #tip svg path, #tip svg rect { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  #tip .side { display: none; }
+  #tip.sideways .down { display: none; }
+  #tip.sideways .side { display: inline; }
+  #tip .tt { display: grid; gap: 6px; }
+  #tip .tt span { transition: opacity 0.2s ease; }
+  #tip .tt span.swap { opacity: 0; }
+  #tip .bar2 { display: none; height: 2px; border-radius: 1px; background: rgb(233 251 249 / 0.22); overflow: hidden; }
+  #tip.sideways .bar2 { display: block; }
+  #tip .bar2 i { display: block; height: 100%; background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); }
+  .note { display: none; }   /* the side guide says "scroll" now */
+  @media (max-width: 700px) { #guide li span { display: none; } #guide { left: 8px; } #guidecue b { display: none; } }
   .padlink:focus-visible { outline: 2px solid var(--ink); outline-offset: -6px; }
 
   /* art detail slides: her "Art / ..." frames. The tile opens into a close-up of a lily pad, like diving into it */
@@ -206,10 +246,26 @@
     <button id="artpad" class="padlink" type="button" aria-label="fine art" hidden></button>
     <button id="workspad" class="padlink" type="button" aria-label="works" hidden></button>
     <a id="contactpad" class="padlink" href="koi/" aria-label="paint a koi" hidden></a>
-    <p id="koisay" role="status" aria-live="polite"><span></span><svg aria-hidden="true"></svg></p>
   </div>
   <div class="chrome">
     <div id="pull" aria-hidden="true"><i></i></div>
+    <nav id="guide" aria-label="Where you are" hidden>
+      <ol>
+        <li><span>welcome</span><i></i></li>
+        <li><span>the moments</span><i></i></li>
+        <li><span>time</span><i></i></li>
+        <li><span>a better future</span><i></i></li>
+        <li><span>follow the current</span><i></i></li>
+        <li><span>currently</span><i></i></li>
+      </ol>
+      <p id="guidecue"><b>3 to go</b>scroll<svg viewBox="0 0 12 16" aria-hidden="true"><path d="M6 1 V14 M1.5 9.5 L6 14 L10.5 9.5"/></svg></p>
+    </nav>
+    <p id="tip" role="status" aria-live="polite" class="off">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="10" y="4" width="10" height="16" rx="5"/><path d="M15 8 V11"/>
+        <path class="down" d="M15 23.5 V28 M12.5 25.5 L15 28 L17.5 25.5"/>
+        <path class="side" d="M3 12 H7 M4.8 10 L3 12 L4.8 14 M23 12 H27 M25.2 10 L27 12 L25.2 14"/></svg>
+      <span class="tt"><span></span><span class="bar2"><i></i></span></span>
+    </p>
     <div class="bar">
       <span class="note" id="note">scroll down</span>
       <a id="contact" href="card/">contact</a>
@@ -1116,58 +1172,39 @@
     place(contactPad, cq[0] - 120 * AS, cq[1] - 120 * AS, 240 * AS, 240 * AS, page === 'works' && !camAnim);
     floatPieces();
   }
-  // ---- the koi talk: if a visitor sits still for a moment, the koi nearest the middle tells them what to do here.
-  // Any scroll, swipe, key or click hushes it; it only speaks again after another quiet spell.
-  { const say = document.getElementById('koisay'), menuEl = document.getElementById('menulist');
-    let still = performance.now(), shown = '', drawn = null;
-    // a hand-drawn loop around the words, like a pen doodle that doesn't quite close, with a little tail toward the koi's mouth
-    function inkLoop(el, below, side) {
-      const w = el.offsetWidth, h = el.offsetHeight, cx = w / 2, cy = h / 2, tx = w / 2 - side * w * 0.32, rx = w / 2 + 10, ry = h / 2 + 6, s1 = Math.random() * 6, s2 = Math.random() * 6;
-      const pts = [], a0 = -2.1, A = 2 * Math.PI + 0.55, n = 72, e = 2 / 2.8;
-      for (let i = 0; i <= n; i++) {
-        const a = a0 + A * i / n, j = 1 + 0.022 * Math.sin(3 * a + s1) + 0.014 * Math.sin(7 * a + s2) + 0.05 * i / n;
-        const c = Math.cos(a), sn = Math.sin(a);
-        pts.push([cx + rx * j * Math.sign(c) * Math.abs(c) ** e, cy + ry * j * Math.sign(sn) * Math.abs(sn) ** e]);
-      }
-      const f = v => v.toFixed(1), Y = y => below ? h - y : y;
-      const loop = 'M' + pts.map(p => f(p[0]) + ' ' + f(below ? h - p[1] : p[1])).join(' L');
-      const tail = `M${f(tx - 10)} ${f(Y(h + 4))} Q${f(tx - 3)} ${f(Y(h + 11))} ${f(tx + 1)} ${f(Y(h + 20))} Q${f(tx + 2)} ${f(Y(h + 11))} ${f(tx + 9)} ${f(Y(h + 5))}`;
-      el.querySelector('svg').innerHTML = `<path d="${loop}"/><path d="${tail}"/>`;
-    }
-
-    const hush = () => { still = performance.now(); if (shown) { shown = ''; say.classList.remove('on'); } };
-    for (const ev of ['wheel', 'touchstart', 'keydown', 'pointerdown']) addEventListener(ev, hush, { passive: true });
-    const line = () => {
-      if (openIdx >= 0 || camAnim || (menuEl && !menuEl.hidden)) return '';
-      if (page === 'works') return 'click a lily pad to open it';
-      if (page === 'art') return 'scroll to drift along, click a piece to see it up close';
-      if (scrollY < innerHeight * 0.5) return 'scroll down to meet Lauren';
-      return aboutStep < 3 ? 'keep scrolling' : 'scroll on, we\u2019ll show you her work';
+  // ---- the guides: a checkpoint line on the right for the stepped scroll (welcome -> About's four frames -> currently),
+  // and a note in the bottom left corner that always says how to move on the page you're on. Both stay put; nothing talks from the koi any more.
+  { const guide = document.getElementById('guide'), dots = [...guide.querySelectorAll('li')], cue = guide.querySelector('#guidecue b');
+    const tip = document.getElementById('tip'), tipT = tip.querySelector('.tt > span'), tipBar = tip.querySelector('.bar2 i');
+    const touch = matchMedia('(pointer: coarse)').matches, down = touch ? 'swipe up' : 'scroll down', up = touch ? 'swipe down' : 'scroll up';
+    let gKey = '', tKey = '', swapT = 0;
+    if (touch) cue.nextSibling.textContent = 'swipe';
+    const words = () => {
+      if (openIdx >= 0) return 'Click outside the piece or press Esc to put it back';
+      if (page === 'works') return 'Click a lily pad to open it. ' + up[0].toUpperCase() + up.slice(1) + ' to go back to About';
+      if (page === 'art') return (touch ? 'Swipe up and down' : 'Scroll up and down') + ' to drift left and right. Click a piece to see it up close';
+      if (scrollY < innerHeight * 0.5) return down[0].toUpperCase() + down.slice(1) + ' to meet Lauren';
+      return aboutStep < 3 ? 'Keep scrolling to read on. The line on the left shows how many are left' : 'Scroll once more to swim over to her work';
     };
     const tick = () => {
       requestAnimationFrame(tick);
-      const now = performance.now(), want = now - still > (shown ? 0 : 2600) ? line() : '';
-      if (want !== shown) { shown = want; if (want) { say.firstChild.textContent = want; drawn = null; } say.classList.toggle('on', !!want); }
-      if (!shown) return;
-      const r = frameRect(), sr = stageEl.getBoundingClientRect(), k = r.width / 1440 * camZ;
-      const mid = [camX + 720 / camZ, cam + 512 / camZ];
-      let best = null;
-      for (const kq of KOI) { if (!kq.tp || !kq.tp.length) continue;
-        const q = trackAt(kq, kq.dist), h = add(q.p, [koiDX, koiDY]);
-        const under = page === 'works' && [[WORKS_PAD, 240], [Wk(928, 494), 200], [Wk(1222, 740), 240]].some(([c, r]) => len(sub(h, c)) < r * AS);   // a koi slipping under a pad can't talk
-        const d = len(sub(h, mid)) + (under ? 1e5 : 0);
-        if (!best || d < best.d) best = { h, d, t: q.tan }; }
-      if (!best) return;
-      // the words come out just ahead of its mouth: above when it swims up, below when it swims down, so they never sit on the koi
-      const bw = say.offsetWidth, bh = say.offsetHeight, pad = 12, below = best.t[1] > 0.2;
-      const ahead = add(best.h, mul(best.t, 60));
-      let x = (ahead[0] - camX) * k, y = (ahead[1] - cam) * k + (below ? 20 : -20);
-      say.classList.toggle('below', below); const side = Math.abs(best.t[0]) > 0.35 ? Math.sign(best.t[0]) : 0, key = below + ':' + side;   // the words lean out ahead of the koi, away from its body
-      if (drawn !== key) { drawn = key; inkLoop(say, below, side); }
-      x += side * bw * 0.32;
-      x = Math.max(sr.left - r.left + pad + bw / 2, Math.min(sr.right - r.left - pad - bw / 2, x));
-      y = below ? Math.max(sr.top - r.top + 70, Math.min(sr.bottom - r.top - pad - bh - 50, y)) : Math.max(sr.top - r.top + pad + bh + 60, Math.min(sr.bottom - r.top - pad - 50, y));
-      say.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      // the guide: which stop you're on
+      const onHome = page === 'home', at = !onHome ? 5 : scrollY < innerHeight * 0.5 ? 0 : 1 + aboutStep;
+      const gk = onHome + ':' + at;
+      if (gk !== gKey) { gKey = gk;
+        guide.hidden = !onHome;
+        dots.forEach((d, i) => { d.classList.toggle('done', i < at); d.classList.toggle('on', i === at); if (i === at) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current'); });
+        guide.querySelector('ol').style.setProperty('--done', (at / (dots.length - 1)).toFixed(3));
+        const left = dots.length - 1 - at;
+        cue.textContent = left > 2 ? left + ' to go' : left === 2 ? 'almost there' : left === 1 ? 'last one' : '';
+      }
+      // the corner note
+      const w = words(), side = page === 'art';
+      if (w !== tKey) { const first = !tKey; tKey = w; clearTimeout(swapT);
+        if (first) { tipT.textContent = w; requestAnimationFrame(() => tip.classList.remove('off')); }
+        else { tipT.classList.add('swap'); swapT = setTimeout(() => { tipT.textContent = w; tipT.classList.remove('swap'); }, 200); } }
+      tip.classList.toggle('sideways', side);
+      if (side) tipBar.style.transform = `scaleX(${(artMax() ? Math.min(1, artX / artMax()) : 0).toFixed(3)})`;
     };
     requestAnimationFrame(tick); }
   let floatT = null;
