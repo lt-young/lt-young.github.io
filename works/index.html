@@ -46,8 +46,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 .top > *,.ui > *{pointer-events:auto}
 .soon{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .4s;pointer-events:none}
 [hidden]{display:none !important}
-/* a small note that stays in the bottom left corner and says how to move here: scrolling up and down glides the pond left and right,
-   so it shows a scroll wheel with arrows to the sides and a line of how far along you are */
+/* a small note that stays in the bottom left corner: scroll down to see more */
 #tip{display:flex;align-items:center;gap:12px;max-width:min(360px,62vw);margin:0;padding:10px 16px 10px 12px;border-radius:14px;
   background:rgb(4 42 52 / 0.78);border:1px solid rgb(233 251 249 / 0.16);color:var(--chip-ink);box-shadow:0 4px 16px rgb(0 20 30 / 0.25);
   font:400 17px/1.3 "Crimson Text",Georgia,serif;letter-spacing:.01em;pointer-events:none!important}
@@ -56,9 +55,6 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 #tip .tt{display:grid;gap:6px}
 #tip .tt span{transition:opacity .2s ease}
 #tip .tt span.swap{opacity:0}
-#tip .bar2{height:2px;border-radius:1px;background:rgb(233 251 249 / 0.22);overflow:hidden}
-#tip .bar2 i{display:block;height:100%;background:var(--chip-ink);transform-origin:0 50%;transform:scaleX(0)}
-#tip.nobar .bar2{display:none}
 </style>
 </head>
 <body>
@@ -77,8 +73,8 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <div class="ui">
   <p id="tip" role="status" aria-live="polite">
-    <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="10" y="4" width="10" height="16" rx="5"/><path d="M15 8 V11"/><path d="M3 12 H7 M4.8 10 L3 12 L4.8 14 M23 12 H27 M25.2 10 L27 12 L25.2 14"/></svg>
-    <span class="tt"><span id="hint">Scroll up and down to move left and right</span><span class="bar2"><i></i></span></span>
+    <svg viewBox="0 0 30 30" aria-hidden="true"><rect x="10" y="4" width="10" height="16" rx="5"/><path d="M15 8 V11"/><path d="M15 23.5 V28 M12.5 25.5 L15 28 L17.5 25.5"/></svg>
+    <span class="tt"><span id="hint">Scroll down to see more</span></span>
   </p>
   <button class="chip still" id="still" type="button" aria-pressed="false">still the water</button>
 </div>
@@ -644,18 +640,13 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
     veil.style.transition = 'none'; veil.style.opacity = 1; anim = { kind: 'cross' };     // arriving from the dive on currently: start on the pad green
     Promise.all([loadImg(SCENES[first].img), loadImg(WATER)]).then(() => { anim = null; openScene(first, null); }); }
   // ---- the corner note: always there, always saying how to move on this page (no more koi talking)
-  { const tip = document.getElementById('tip'), bar = tip.querySelector('.bar2 i');
-    const touch = matchMedia('(pointer: coarse)').matches, sw = touch ? 'Swipe up and down' : 'Scroll up and down';
+  { const touch = matchMedia('(pointer: coarse)').matches, more = (touch ? 'Swipe up' : 'Scroll down') + ' to see more';
     let shown = '', swapT = 0;
-    const words = () => zoomR ? 'Click anywhere to step back' : id === 'works' ? sw + ' to move left and right. Click a lily pad to open it'
-      : sw + ' to move along. Click any piece to see it up close';
     const tick = () => {
       requestAnimationFrame(tick);
-      const w = words();
+      const w = zoomR ? 'Click anywhere to step back' : more;
       if (w !== shown) { const first = !shown; shown = w; clearTimeout(swapT);
         if (first) hint.textContent = w; else { hint.classList.add('swap'); swapT = setTimeout(() => { hint.textContent = w; hint.classList.remove('swap'); }, 200); } }
-      tip.classList.toggle('nobar', !!zoomR);
-      bar.style.transform = `scaleX(${scrollP().toFixed(3)})`;
     };
     requestAnimationFrame(tick); }
   window.__works = () => ({ id, cam: { ...cam }, anim: anim && anim.kind, zoom: !!zoomR, heads: KOI.map(k => k.head && k.head.map(Math.round)) });
