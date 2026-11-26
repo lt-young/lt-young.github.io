@@ -60,7 +60,7 @@
   button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .note { font-size: 16px; color: var(--ink-soft); }
   /* a quiet way to reach her from any page: "contact" in her script, bottom right, opens the contact card */
-  #contact { font: italic 700 calc(34 / 1440 * var(--fw)) / 1 "Boska", Georgia, serif; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px;
+  #contact { font: italic 400 calc(34 / 1440 * var(--fw)) / 1 "Boska", Georgia, serif; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px;
     text-shadow: 0 1px 2px rgb(0 40 50 / 0.55), 0 0 8px rgb(0 40 50 / 0.35); transition: color 0.2s; }
   #contact:hover { color: oklch(0.9 0.08 150); }
   #contact:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -82,7 +82,7 @@
   /* "move upstream" is written on the water like her page titles, with a little ripple under it */
   #back {
     border: 0; background: none; padding: 4px 6px 12px; border-radius: 6px; position: relative;
-    font: italic 700 calc(30 / 1440 * var(--fw)) / 1 "Boska", Georgia, serif; letter-spacing: 0; color: var(--ink);
+    font: italic 400 calc(30 / 1440 * var(--fw)) / 1 "Boska", Georgia, serif; letter-spacing: 0; color: var(--ink);
     text-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
   }
   #back[hidden] { display: none; }
@@ -108,7 +108,7 @@
   #menulist button {
     border: 0; background: none; padding: 0.2cqw 0.3cqw; border-radius: 6px; color: var(--ink); white-space: nowrap;
     display: flex; align-items: center; gap: 0.7cqw;
-    font: italic 700 calc(42 / 1440 * var(--fw)) / 1.2 "Boska", Georgia, serif; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+    font: italic 400 calc(42 / 1440 * var(--fw)) / 1.2 "Boska", Georgia, serif; letter-spacing: 0; text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
     animation: drift-in 0.5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms);
   }
   #menulist button::before {
@@ -192,11 +192,11 @@
   .detail img { position: absolute; display: block; object-fit: cover; box-shadow: 0 calc(10 / 1440 * 100cqw) calc(30 / 1440 * 100cqw) rgb(0 20 10 / 0.35); }
   .detail .shut {
     position: absolute; left: calc(120 / 1440 * 100%); bottom: 2.4%; border: 0; background: none; padding: 8px 4px; border-radius: 6px;
-    font: italic 700 calc(44 / 1440 * 100cqw) / 1 "Boska", Georgia, serif; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+    font: italic 400 calc(44 / 1440 * 100cqw) / 1 "Boska", Georgia, serif; color: var(--ink); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
   }
   .detail .shut::before { content: "\2190"; margin-right: 8px; font: 400 0.7em/1 var(--font-ui); vertical-align: 0.15em; }
 </style>
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=boska@701&display=swap">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=boska@401&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=Shippori+Mincho:wght@500&display=swap">
 
 </head>
@@ -1356,7 +1356,7 @@
   }
   const LAYER_SRC = { base: 'water-base.webp?v=6', letter: 'lettering.webp?v=2', texture: 'water-texture.webp?v=3', lines: 'water-lines.webp?v=3',
     aboutWater: 'about-water.webp?v=4', photo: 'about-photo.webp?v=9', aboutText: 'about-text.webp?v=8', aboutStep0: 'about-step-0.webp?v=2', aboutStep1: 'about-step-1.webp?v=2', aboutStep2: 'about-step-2.webp?v=2', aboutStep3: 'about-step-3.webp?v=4',
-    worksWater: 'works-water.webp?v=3', worksTop: 'works-top.webp?v=7', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.webp?v=4' };
+    worksWater: 'works-water.webp?v=3', worksTop: 'works-top.webp?v=8', artWater: 'art-water-land.jpg?v=1', artTop: 'art-top-float.webp?v=4' };
   // the landing's own water and lettering come first; the later pages' pictures follow once those are in (all at once when you arrive on a later page)
   { const FIRST = ['base', 'letter', 'texture', 'lines'], later = !!location.hash && location.hash !== '#';
     let left = FIRST.length;
