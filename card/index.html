@@ -74,6 +74,7 @@
   <p class="copied" id="copied" aria-live="polite"></p>
 </main>
 
+<script src="../koi-swim.js?v=1"></script>
 <script>
 (() => {
   const EMAIL = 'lauren888young@gmail.com';
@@ -84,32 +85,61 @@
     clearTimeout(copy.t); copy.t = setTimeout(() => note.textContent = '', 2400);
   });
 
-  // one koi drifting through the pond, under everything
-  const cv = document.getElementById('koi'), ctx = cv.getContext('2d');
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const f = { img: new Image(), face: -0.70, len: 240, t: 0, sp: 0.05 };
-  f.img.src = '../koi-orange.png';
-  let W = 0, H = 0, dpr = 1;
-  function fit() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; }
-  fit(); addEventListener('resize', fit);
-  // a slow loop over the right side of the screen so it stays clear of the words on the left
-  function path(t) { const cx = W < 700 ? W * 0.5 : W * 0.68, rx = W < 700 ? W * 0.34 : W * 0.22, ry = H * 0.36;
-    const cy = W < 700 ? H * 0.8 : H * 0.55, ry2 = W < 700 ? H * 0.1 : ry;   // on phones it stays in the water below the words
-    return [cx + Math.cos(t) * rx + Math.sin(t * 2.3) * 30, cy + Math.sin(t) * ry2 + Math.cos(t * 1.7) * (W < 700 ? 20 : 40)]; }
-  let last = null;
+  // her two koi, swimming exactly as on the rest of the site (same rig, same swim, same size as on "currently"),
+  // round one wide loop that circles the words and never leaves the screen
+  const cv = document.getElementById('koi'), gl = cv.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
+  if (!gl || !window.KoiSwim) return;
+  const KS = window.KoiSwim, reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const vs = `attribute vec2 p; attribute vec2 uv; varying vec2 v; uniform vec2 res;
+    void main(){ v = uv; gl_Position = vec4(p.x / res.x * 2.0 - 1.0, 1.0 - p.y / res.y * 2.0, 0.0, 1.0); }`;
+  const fs = `precision mediump float; varying vec2 v; uniform sampler2D t; void main(){ gl_FragColor = texture2D(t, v); }`;
+  const sh = (ty, src) => { const o = gl.createShader(ty); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+  const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  const aP = gl.getAttribLocation(prog, 'p'), aUV = gl.getAttribLocation(prog, 'uv'), uRes = gl.getUniformLocation(prog, 'res');
+  gl.uniform1i(gl.getUniformLocation(prog, 't'), 0);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(KS.IDX), gl.STATIC_DRAW);
+
+  let W = 0, H = 0, dpr = 1, SC = 1, LOOP = null;
+  const KOI = KS.siteKoi('../');
+  function fit() {
+    dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    SC = 0.68 * Math.min(W / 1440, H / 1024);      // the main site's frame, fitted to the screen, at the zoom of its inner pages
+    const m = Math.max(250 * SC, 56);                           // inset so fins and tail stay on screen all the way round
+    LOOP = KS.superLoop(W / 2, H / 2, Math.max(W / 2 - m, 180 * SC), Math.max(H / 2 - m, 180 * SC), 2 / 2.6);
+    KOI.forEach(k => { if (!k.ready) return;      // a new window size: carry on from the same point of the lap
+      const f = (k.plan.u - (k.td[k.td.length - 1] - k.dist)) / k.plan.loop.P; KS.startTrack(k, LOOP, f * LOOP.P, SC); });
+  }
+  fit();
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(fit, 150); });
+  function potCanvas(img) { const c = document.createElement('canvas'); c.width = 2048; c.height = 2048; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, 2048, 2048); return c; }
+  KOI.forEach((o, i) => { const img = new Image(); img.onload = () => {
+    const k = KOI[i] = Object.assign(KS.rig(Object.assign(o, { texW: img.width, texH: img.height })), { ready: true });
+    k.uvb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.bufferData(gl.ARRAY_BUFFER, k.uv, gl.STATIC_DRAW);
+    k.pb = gl.createBuffer(); k.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, k.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, potCanvas(img)); gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    KS.startTrack(k, LOOP, k.lap0 * LOOP.P + LOOP.P * 0.37, SC);
+  }; img.src = o.src; });
+
+  let last = null, t = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-    if (!f.img.complete || !f.img.naturalWidth) return;
-    f.t += dt * f.sp * (reduce ? 0 : 1);
-    const [x, y] = path(f.t), [x2, y2] = path(f.t + 0.01);
-    const head = Math.atan2(y2 - y, x2 - x) + Math.sin(now / 420) * 0.06;
-    const s = Math.min(1, W / 700) * f.len / Math.hypot(f.img.naturalWidth, f.img.naturalHeight) * 1.25;
-    const w = f.img.naturalWidth * s, h = f.img.naturalHeight * s;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(head - f.face);
-    ctx.shadowColor = 'rgba(0,35,45,0.3)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 10;
-    ctx.drawImage(f.img, -w / 2, -h / 2, w, h); ctx.restore();
+    const go = reduce ? 0 : dt; t += go;
+    gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uRes, W, H);
+    for (const k of KOI) {
+      if (!k.ready) continue;
+      KS.pose(k, t, go, KOI.find(o => o !== k && o.ready));
+      gl.bindBuffer(gl.ARRAY_BUFFER, k.pb); gl.bufferData(gl.ARRAY_BUFFER, k.pos, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, k.uvb); gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+      gl.bindTexture(gl.TEXTURE_2D, k.tex);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.drawElements(gl.TRIANGLES, KS.IDX.length, gl.UNSIGNED_SHORT, 0);
+    }
   }
   requestAnimationFrame(frame);
 })();

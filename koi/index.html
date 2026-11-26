@@ -111,6 +111,7 @@
 </main>
 <a class="contact" href="../card/">contact</a>
 
+<script src="../koi-swim.js?v=1"></script>
 <script>
 (() => {
   // ---------- layers (Lauren's files, 2x, all on the same 2732 x 1840 canvas)
@@ -298,21 +299,6 @@
   const TEX = 2048, texC = mk(TEX, TEX), texX = texC.getContext('2d');
   // head-to-tail spine in layer px, traced on Lauren's koi
   const SPINE = [[2350, 170], [2340, 300], [2330, 450], [2280, 650], [2160, 850], [2000, 1000], [1800, 1120], [1550, 1210], [1250, 1290], [950, 1340], [600, 1400], [250, 1460], [20, 1500]];
-  const N = 48, M = 15, HALF = 760;
-  function resample(pts, n) {
-    const d = [0]; for (let i = 1; i < pts.length; i++) d.push(d[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    const out = []; let j = 0;
-    for (let i = 0; i < n; i++) { const t = d[d.length - 1] * i / (n - 1); while (j < d.length - 2 && d[j + 1] < t) j++;
-      const f = (t - d[j]) / (d[j + 1] - d[j]); out.push([pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f]); }
-    return { pts: out, len: d[d.length - 1] };
-  }
-  const RS = resample(SPINE, N), REST = RS.pts, BL = RS.len;
-  function normalsOf(P) { return P.map((p, i) => { const a = P[Math.max(0, i - 2)], b = P[Math.min(P.length - 1, i + 2)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [-dy / l, dx / l]; }); }
-  const RN = normalsOf(REST);
-  const UV = new Float32Array(N * M * 2);
-  for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const o = (j / (M - 1) * 2 - 1) * HALF, k = (i * M + j) * 2;
-    UV[k] = (REST[i][0] + RN[i][0] * o) / W; UV[k + 1] = (REST[i][1] + RN[i][1] * o) / H; }
-  const IDX = []; for (let i = 0; i < N - 1; i++) for (let j = 0; j < M - 1; j++) { const a = i * M + j, b = a + 1, c = a + M, d = c + 1; IDX.push(a, c, b, b, c, d); }
 
   const vs = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; uniform vec2 off; varying vec2 v;
     void main(){ v = uv; vec2 q = (p + off) / res * 2.0 - 1.0; gl_Position = vec4(q.x, -q.y, 0, 1); }`;
@@ -322,10 +308,7 @@
   const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
   const U = n => gl.getUniformLocation(prog, n);
   const pBuf = gl.createBuffer(), uvBuf = gl.createBuffer(), iBuf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, UV, gl.STATIC_DRAW);
   const aUV = gl.getAttribLocation(prog, 'uv'), aP = gl.getAttribLocation(prog, 'p');
-  gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(IDX), gl.STATIC_DRAW);
   const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -338,33 +321,29 @@
     glc.width = Math.round(pw * dpr); glc.height = Math.round(ph * dpr); gl.viewport(0, 0, glc.width, glc.height); }
   addEventListener('resize', fit);
 
-  // a gentle counter-clockwise loop, the way her koi is drawn turning
-  let dist = 0;
-  function loop(u) { const a = u, cx = pw * 0.56, cy = ph * 0.5, rx = pw * 0.24, ry = ph * 0.22;
-    return [cx + rx * Math.cos(a) + Math.sin(a * 2) * pw * 0.02, cy - ry * Math.sin(a)]; }
-  const verts = new Float32Array(N * M * 2);
-  function pondFrame(t) {
+  // the swim is the main site's own (shared ../koi-swim.js): her koi on the landing oval, at the landing's proportions
+  const KS = window.KoiSwim;
+  const KOI = KS.rig({ spine: SPINE, body: 1750, half: 760, bodyHalf: 267, phase0: 0, freq: 0.68, texW: W, texH: H, unit: 1 / 0.3, ext: [0, 0, 0] });   // the paint layers have no margin to run into
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, KOI.uv, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(KS.IDX), gl.STATIC_DRAW);
+  let lw = 0, lh = 0, last = null, st = 0;
+  const verts = new Float32Array(KS.N * KS.M * 2), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function pondFrame(now) {
     if (!pw) fit();
-    const sc = Math.min(pw, ph * 1.3) * 0.58 / W;        // css px per layer px
-    const speed = 0.16, u = t * speed;
-    const head = loop(u), ahead = loop(u + 0.01), heading = Math.atan2(ahead[1] - head[1], ahead[0] - head[0]);
-    // her drawing faces this way at the head
-    const f0 = REST[0], f1 = REST[Math.round(N * 0.22)], restHead = Math.atan2(f0[1] - f1[1], f0[0] - f1[0]);
-    const rot = heading - restHead, c = Math.cos(rot), s = Math.sin(rot);
-    // body wave: small near the head, growing toward the tail, beat and glide
-    const beat = 0.75 + 0.25 * Math.sin(t * 0.7);
-    const D = REST.map((p, i) => { const q = i / (N - 1), A = (0.02 - 0.08 * q + 0.16 * q * q) * BL * 0.55 * beat, y = A * Math.sin(t * 4.2 - q * 5.5);
-      return [p[0] + RN[i][0] * y, p[1] + RN[i][1] * y]; });
-    const DN = normalsOf(D);
-    for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) { const o = (j / (M - 1) * 2 - 1) * HALF, k = (i * M + j) * 2;
-      const lx = (D[i][0] + DN[i][0] * o - f0[0]) * sc, ly = (D[i][1] + DN[i][1] * o - f0[1]) * sc;
-      verts[k] = (head[0] + lx * c - ly * s) * dpr; verts[k + 1] = (head[1] + lx * s + ly * c) * dpr; }
+    if (pw !== lw || ph !== lh) {                 // landing oval 520 x 345 with the koi's fins inside, fitted to the preview
+      lw = pw; lh = ph; const f = Math.min(pw / 1510, ph / 1160), L = KS.superLoop(pw / 2, ph / 2, 520 * f, 345 * f, 1);
+      KS.startTrack(KOI, L, KOI.plan ? (KOI.plan.u - (KOI.td[KOI.td.length - 1] - KOI.dist)) / KOI.plan.loop.P * L.P : L.P * 0.37, f);
+    }
+    const dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000), go = reduce ? 0 : dt; last = now; st += go;
+    KS.pose(KOI, st, go, null);
+    for (let i = 0; i < verts.length; i++) verts[i] = KOI.pos[i] * dpr;
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindBuffer(gl.ARRAY_BUFFER, pBuf); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.DYNAMIC_DRAW);
     gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
     gl.uniform2f(U('res'), glc.width, glc.height);
-    gl.uniform2f(U('off'), 14 * dpr, 22 * dpr); gl.uniform1f(U('shadow'), 0.28); gl.drawElements(gl.TRIANGLES, IDX.length, gl.UNSIGNED_SHORT, 0);
-    gl.uniform2f(U('off'), 0, 0); gl.uniform1f(U('shadow'), 0); gl.drawElements(gl.TRIANGLES, IDX.length, gl.UNSIGNED_SHORT, 0);
+    gl.uniform2f(U('off'), 14 * dpr, 22 * dpr); gl.uniform1f(U('shadow'), 0.28); gl.drawElements(gl.TRIANGLES, KS.IDX.length, gl.UNSIGNED_SHORT, 0);
+    gl.uniform2f(U('off'), 0, 0); gl.uniform1f(U('shadow'), 0); gl.drawElements(gl.TRIANGLES, KS.IDX.length, gl.UNSIGNED_SHORT, 0);
   }
 
   function tick(now) {
@@ -372,7 +351,7 @@
     if (!ready) return;
     if (dirty) { compose(vctx, W, H); dirty = false; }
     if (texDirty || (live && now - lastTex > 300)) { upload(); texDirty = false; lastTex = now; }
-    pondFrame(now / 1000);
+    pondFrame(now);
   }
 
   Promise.all(Object.entries(SRC).map(([k, s]) => load(s).then(i => L[k] = i))).then(() => { ready = true; restore(); replay(); fit(); saveSiteKoi(); });
