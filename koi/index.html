@@ -73,10 +73,15 @@
   #saved { transition: opacity .3s; opacity: 0; }
   a.contact { position: fixed; right: 24px; bottom: 18px; font-family: "Boska", "Crimson Text", serif; font-style: italic; font-weight: 700; font-size: 28px; line-height: 1; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px; }
   a.contact:hover { color: var(--accent); }
+  a.back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; font-family: "Boska", "Crimson Text", serif; font-style: italic; font-weight: 700; font-size: 24px; line-height: 1; color: var(--ink); text-decoration: none; }
+  a.back svg { width: 26px; height: 14px; stroke: currentColor; stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+  a.back:hover { color: var(--accent); }
+  a.back:hover svg { transform: translateX(-4px); }
 </style>
 </head>
 <body>
 <main>
+  <a class="back" href="../"><svg viewBox="0 0 26 14" aria-hidden="true"><path d="M25 7.4C17 6.6 9 7.2 1.5 7M6.5 1.8 1.5 7l5 5.2"/></svg>back</a>
   <header>
     <p>I’m so drawn to koi because I feel like they each have their own unique frame. Add your own koi to the pond. They will swim with you while you’re here.</p>
     <a class="home" href="../">swim with me</a>
@@ -112,7 +117,7 @@
   const W = 2732, H = 1840;
   const SRC = { structure: 'layers/structure.png?v=1', mask: 'layers/mask.png?v=1', shading: 'layers/shading.png?v=1' };
   const SWATCHES = ['#d8361f', '#ee7a22', '#f3c13a', '#1e1b1f', '#f4efe6', '#e8578f', '#3fae6a', '#2f8fd6'];
-  const KEY = 'koi-paint-v1', TEXKEY = 'koi-paint-tex-v1';
+  const KEY = 'koi-paint-v1', TEXKEY = 'koi-paint-tex-v2', OLDTEX = 'koi-paint-tex-v1';
 
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
   const load = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -265,7 +270,8 @@
   const SITE = 0.3, PADPX = 100;
   function saveSiteKoi() {
     try {
-      if (!strokes.length) { localStorage.removeItem(TEXKEY); return; }
+      localStorage.removeItem(OLDTEX);   // v1 could hold an unpainted (white) koi from a stray click
+      if (!painted()) { localStorage.removeItem(TEXKEY); return; }   // nothing really painted: the site keeps her original koi
       const w = Math.round(W * SITE), h = Math.round(H * SITE), c = mk(w + 2 * PADPX, h + 2 * PADPX), x = c.getContext('2d');
       const k = mk(w, h), kx = k.getContext('2d'); compose(kx, w, h);
       const sm = mk(Math.round(c.width / 10), Math.round(c.height / 10)), sx = sm.getContext('2d');   // blur by shrinking
@@ -275,6 +281,15 @@
       let url = c.toDataURL('image/webp', 0.92); if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
       localStorage.setItem(TEXKEY, url);
     } catch (e) {}
+  }
+  // has the visitor actually painted the body? A click, or paint that landed off the fish, does not count.
+  function painted() {
+    if (!strokes.length) return false;
+    const w = 273, h = 184, c = mk(w, h), x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(L.mask, 0, 0, w, h); const m = x.getImageData(0, 0, w, h).data;
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(paint, 0, 0, w, h); const d = x.getImageData(0, 0, w, h).data;
+    let body = 0, wet = 0; for (let i = 3; i < m.length; i += 4) { if (m[i] > 128) body++; if (d[i] > 60) wet++; }
+    return body > 0 && wet / body > 0.01;
   }
   function restore() { try { const s = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(s)) strokes = s; } catch (e) { strokes = []; } }
 
@@ -360,8 +375,8 @@
     pondFrame(now / 1000);
   }
 
-  Promise.all(Object.entries(SRC).map(([k, s]) => load(s).then(i => L[k] = i))).then(() => { ready = true; restore(); replay(); fit(); if (strokes.length) saveSiteKoi(); });
-  document.querySelector('a.home').addEventListener('click', saveSiteKoi);
+  Promise.all(Object.entries(SRC).map(([k, s]) => load(s).then(i => L[k] = i))).then(() => { ready = true; restore(); replay(); fit(); saveSiteKoi(); });
+  document.querySelectorAll('a.home, a.back').forEach(a => a.addEventListener('click', saveSiteKoi));
   requestAnimationFrame(tick);
   window.__koi = { get strokes() { return strokes; } };
 })();

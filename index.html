@@ -279,7 +279,7 @@
   ];
   // a visitor who painted a koi at /koi/ sees it swim here in place of the orange one (saved in their browser only).
   // The texture is her koi layers at 0.3 scale with a 100px margin, so this rig is her traced spine at 0.3.
-  try { const tex = localStorage.getItem('koi-paint-tex-v1');
+  try { const tex = localStorage.getItem('koi-paint-tex-v2');   // v2: only written once the body is really painted
     if (tex && tex.startsWith('data:image/')) Object.assign(KOI[0], { custom: tex, body: 525, half: 228, bodyHalf: 80,
       spine: [[2350,170],[2340,300],[2330,450],[2280,650],[2160,850],[2000,1000],[1800,1120],[1550,1210],[1250,1290],[950,1340],[600,1400],[250,1460],[20,1500]].map(([x, y]) => [x * 0.3, y * 0.3]) });
   } catch (e) {}
