@@ -6,7 +6,6 @@
 <title>Works · Lauren Young</title>
 <meta name="description" content="Lauren Young's case studies, laid out as lily pads in a koi pond.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400&display=swap">
-<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=boska@301&display=swap">
 <style>
 @font-face{font-family:"Melodrame";src:url(../fonts/melodrame.woff2) format("woff2");font-display:swap}
 @font-face{font-family:"Astoria";src:url(../fonts/astoria.woff2) format("woff2");font-display:swap}
@@ -34,7 +33,7 @@ html,body{background:var(--veil);margin:0;color:var(--chip-ink)}
 .zoomed .hit{cursor:zoom-out}
 .veil{position:absolute;inset:0;background:var(--veil);opacity:1;pointer-events:none}
 /* buttons are words written on the water, like "move upstream" on the main site: no pill, just her italic and a hand-drawn ripple */
-.chip{position:relative;font:italic 300 22px/1 "Boska",Georgia,serif;color:var(--chip-ink);background:none;border:0;border-radius:6px;padding:4px 6px 12px;
+.chip{position:relative;font:400 22px/1 "Crimson Text",Georgia,serif;color:var(--chip-ink);background:none;border:0;border-radius:6px;padding:4px 6px 12px;
   text-shadow:0 1px 3px rgb(0 0 0 / 0.4)}
 button.chip{cursor:pointer}
 button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
@@ -92,7 +91,7 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
 </div>
 <span class="chip soon" id="soon" style="opacity:0" aria-live="polite"></span>
 
-<script src="scenes.js?v=12"></script>
+<script src="scenes.js?v=13"></script>
 <script>
 (() => {
   const U = 260;                                  // current speed, world px per second
@@ -153,10 +152,11 @@ button.chip:focus-visible{outline:2px solid var(--koi);outline-offset:2px}
       return { s, x: xa + (xb - xa) * smooth(p), y: WH / 2, p };
     }
     const s0 = Math.min(VW / WW, VH / WH) * 0.97;
-    const s1 = Math.max(VH / 3800, VW / WW);          // tall enough to keep all three rows of her pieces in view
+    const s1 = Math.max(VH / 3000, VW / WW);          // closer in as you scroll (Lauren, Nov 27: zoom in more on each project)
     const z = smooth(clamp(p / 0.14, 0, 1)), pan = smooth(clamp((p - 0.1) / 0.9, 0, 1));
     const R = S.ir ? Math.max(WW, S.ir[0] + S.ir[2] - 120) : WW;              // run on to the far edge of her last pad, even where it hangs past the frame
-    const half = VW / 2 / s1, xa = half, xb = Math.max(half, R - half);
+    const Lx = S.ir ? Math.min(0, S.ir[0] + 60) : 0;                          // start where her title pad begins, even where it hangs past the frame
+    const half = VW / 2 / s1, xa = Lx + half, xb = Math.max(xa, R - half);
     return { s: Math.exp(Math.log(s0) * (1 - z) + Math.log(s1) * z), x: WW / 2 + ((xa + (xb - xa) * pan) - WW / 2) * z, y: WH / 2, p };
   }
   const fitRect = (r, m) => ({ s: Math.min(VW / r[2], VH / r[3]) * m, x: r[0] + r[2] / 2, y: r[1] + r[3] / 2 });
